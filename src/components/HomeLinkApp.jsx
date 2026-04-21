@@ -21,6 +21,7 @@ import ScreenSourcing from './screens/Sourcing'
 import ScreenMyBrokers from './screens/MyBrokers'
 import ScreenAdminUsers from './screens/AdminUsers'
 import ScreenProperties from './screens/Properties'
+import ScreenAdminApprovals from './screens/AdminApprovals'
 
 const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','CONCRETIZADA','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
 
@@ -33,11 +34,10 @@ export default function HomeLinkApp() {
   const [interests, setInterests] = useState(INT_DATA)
   const [opps, setOpps] = useState(OPPS_DATA)
   const [toasts, setToasts] = useState([])
-  const [modal, setModal] = useState(null) // {type, data}
+  const [modal, setModal] = useState(null)
   const [selectedOpp, setSelectedOpp] = useState(null)
   const [demoMode, setDemoMode] = useState(false)
 
-  // Toggle theme on <html>
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
@@ -50,12 +50,20 @@ export default function HomeLinkApp() {
 
   const navigate = useCallback((sid) => {
     setScreen(sid)
-    if (sid === 'opp-detail') return // keep selectedOpp
+    if (sid === 'opp-detail') return
   }, [])
 
   const openOpp = useCallback((oppId) => {
     const o = opps.find(x => x.id === oppId)
     if (o) { setSelectedOpp(o); setScreen('opp-detail') }
+  }, [opps])
+
+  // Keep selectedOpp in sync when opps change
+  useEffect(() => {
+    if (selectedOpp) {
+      const updated = opps.find(o => o.id === selectedOpp.id)
+      if (updated) setSelectedOpp(updated)
+    }
   }, [opps])
 
   const toggleFav = useCallback((propId) => {
@@ -92,22 +100,86 @@ export default function HomeLinkApp() {
     }))
   }, [])
 
+  // Toggle property status: pause / activate / remove (cancel)
+  const togglePropStatus = useCallback((propId, action) => {
+    setProps(prev => prev.map(p => {
+      if (p.id !== propId) return p
+      const now = new Date().toISOString().slice(0,10)
+      const eventMap = { pause: 'Status: Pausado', activate: 'Status: Ativo', remove: 'Status: Cancelado' }
+      const statusMap = { pause: 'pausado', activate: 'ativo', remove: 'cancelado' }
+      return {
+        ...p,
+        status: statusMap[action],
+        audit: [...(p.audit||[]), { date: now, event: eventMap[action], user: lang==='pt'?'Usuário':'User', type:'status' }]
+      }
+    }))
+    const msgs = {
+      pause: lang==='pt'?'Anúncio pausado':'Listing paused',
+      activate: lang==='pt'?'Anúncio reativado':'Listing reactivated',
+      remove: lang==='pt'?'Anúncio removido':'Listing removed',
+    }
+    toast(msgs[action], action==='remove'?'info':'success')
+    setModal(null)
+  }, [lang, toast])
+
+  // Approve / reject property (admin)
+  const approveProp = useCallback((propId) => {
+    setProps(prev => prev.map(p => {
+      if (p.id !== propId) return p
+      const now = new Date().toISOString().slice(0,10)
+      return {
+        ...p,
+        status: 'ativo',
+        approval_status: 'approved',
+        audit: [...(p.audit||[]), { date:now, event:'Aprovado pelo Admin', user:'Admin Demo', type:'approved' }, { date:now, event:'Status: Ativo', user:'Sistema', type:'status' }]
+      }
+    }))
+    toast(lang==='pt'?'Anúncio aprovado ✓':'Listing approved ✓', 'success')
+  }, [lang, toast])
+
+  const rejectProp = useCallback((propId) => {
+    setProps(prev => prev.map(p => {
+      if (p.id !== propId) return p
+      const now = new Date().toISOString().slice(0,10)
+      return {
+        ...p,
+        status: 'cancelado',
+        approval_status: 'rejected',
+        audit: [...(p.audit||[]), { date:now, event:'Rejeitado pelo Admin', user:'Admin Demo', type:'rejected' }]
+      }
+    }))
+    toast(lang==='pt'?'Anúncio rejeitado':'Listing rejected', 'info')
+  }, [lang, toast])
+
+  // Assign broker & agency to opportunity
+  const assignBrokerToOpp = useCallback((oppId, broker, agency) => {
+    setOpps(prev => prev.map(o => {
+      if (o.id !== oppId) return o
+      return {
+        ...o,
+        broker: broker?.name || null,
+        broker_id: broker?.id || null,
+        agency: agency?.name || null,
+        agency_id: agency?.id || null,
+      }
+    }))
+  }, [])
+
   // Shared context passed to all screens
   const ctx = {
     role, lang, theme, props, interests, opps, toasts,
     CHAINS, USERS_DATA, BROKERS_DATA, AGENCIES_DATA, COMM_HISTORY, ALERTS, ROLES, PL,
-    navigate, openOpp, toggleFav, switchRole, advanceOpp, retreatOpp, updateCommStatus,
+    navigate, openOpp, toggleFav, switchRole,
+    advanceOpp, retreatOpp, updateCommStatus,
+    togglePropStatus, approveProp, rejectProp, assignBrokerToOpp,
     toast, setModal, setProps, setInterests, setOpps,
     t: (k) => t(k, lang),
     fmtPrice, fmtN, fmtPct,
   }
 
-  // Nav badges
   const getBadge = (id) => navBadge(id, role, opps, props)
-
   const nav = getNav(role)
 
-  // Current screen renderer
   const renderScreen = () => {
     switch (screen) {
       case 'marketplace':      return <ScreenMarketplace ctx={ctx} />
@@ -125,6 +197,7 @@ export default function HomeLinkApp() {
       case 'sourcing':         return <ScreenSourcing ctx={ctx} />
       case 'my-brokers':       return <ScreenMyBrokers ctx={ctx} />
       case 'admin_users':      return <ScreenAdminUsers ctx={ctx} />
+      case 'admin-approvals':  return <ScreenAdminApprovals ctx={ctx} />
       default:                 return <ScreenMarketplace ctx={ctx} />
     }
   }
@@ -219,14 +292,14 @@ export default function HomeLinkApp() {
                 ⬆ Importar CSV
               </button>
             )}
-            {screen === 'properties' && role === 'ADMIN' && (
-              <button className="btn btn-primary btn-sm" onClick={() => setModal({type:'import'})}>
-                ⬆ Importar CSV
-              </button>
-            )}
             {screen === 'interests' && (
               <button className="btn btn-primary btn-sm" onClick={() => setModal({type:'addInterest'})}>
                 {ctx.t('btn_add_interest')}
+              </button>
+            )}
+            {screen === 'my-properties' && (
+              <button className="btn btn-primary btn-sm" onClick={() => setModal({type:'addListing'})}>
+                {ctx.t('btn_add_listing')}
               </button>
             )}
             {['analytics','broker-analytics','agency-analytics'].includes(screen) && (
@@ -272,7 +345,7 @@ export default function HomeLinkApp() {
         <AddInterestModal lang={lang} role={role} onClose={() => setModal(null)}
           onSave={(data) => {
             const ownerKey = role==='BROKER'?'broker':role==='AGENCY'?'agency':'usuario'
-            setInterests(prev => [...prev, { id:`INT-${Date.now()}`, owner:ownerKey, status:'ATIVO', ...data }])
+            setInterests(prev => [...prev, { id:`INT-${Date.now()}`, owner:ownerKey, status:'ATIVO', sourcing_status:'PENDENTE', ...data }])
             setModal(null)
             toast(lang==='pt'?'Interesse cadastrado ✓':'Interest added ✓','success')
           }}
@@ -282,12 +355,52 @@ export default function HomeLinkApp() {
       {modal?.type === 'addListing' && (
         <AddListingModal lang={lang} role={role} onClose={() => setModal(null)}
           onSave={(data) => {
-            const ownerKey = role==='USUARIO'?'usuario':'outro'
-            setProps(prev => [...prev, { id:`PROP-${Date.now()}`, owner:ownerKey, status:'ativo', chain:null, fav:false, reg:new Date().toISOString().slice(0,10), ...data }])
+            if (modal.data) {
+              // Edit existing
+              setProps(prev => prev.map(p => p.id === modal.data.id ? { ...p, ...data } : p))
+              toast(lang==='pt'?'Anúncio atualizado ✓':'Listing updated ✓','success')
+            } else {
+              // Create new — starts as pending approval
+              const ownerKey = role==='USUARIO'?'usuario':'outro'
+              const now = new Date().toISOString().slice(0,10)
+              setProps(prev => [...prev, {
+                id:`PROP-${Date.now()}`, owner:ownerKey, status:'pendente',
+                chain:null, fav:false, reg:now,
+                approval_status:'pending',
+                audit:[{ date:now, event:'Anúncio criado — aguardando aprovação', user:ROLES[role]?.user_pt||'Usuário', type:'created' }],
+                ...data
+              }])
+              toast(lang==='pt'?'Anúncio enviado para aprovação ⏳':'Listing sent for approval ⏳','info')
+            }
             setModal(null)
-            toast(lang==='pt'?'Anúncio publicado ✓':'Listing published ✓','success')
           }}
         />
+      )}
+
+      {modal?.type === 'confirmRemoveProp' && modal.data && (
+        <Modal
+          title={lang==='pt'?'Remover Anúncio':'Remove Listing'}
+          onClose={() => setModal(null)}
+          footer={
+            <>
+              <button className="btn btn-secondary" onClick={() => setModal(null)}>{lang==='pt'?'Cancelar':'Cancel'}</button>
+              <button className="btn btn-sm" style={{ background:'var(--red)', color:'#fff', border:'none', borderRadius:'var(--radius-sm)', padding:'7px 16px', cursor:'pointer', fontWeight:600 }}
+                onClick={() => togglePropStatus(modal.data.id, 'remove')}>
+                🗑 {lang==='pt'?'Remover':'Remove'}
+              </button>
+            </>
+          }
+        >
+          <p style={{ fontSize:13.5, color:'var(--text2)', marginBottom:8 }}>
+            {lang==='pt'
+              ? `Tem certeza que deseja remover o anúncio "${modal.data.name}"?`
+              : `Are you sure you want to remove the listing "${modal.data.en || modal.data.name}"?`
+            }
+          </p>
+          <p style={{ fontSize:12, color:'var(--text3)' }}>
+            {lang==='pt'?'O anúncio será marcado como cancelado e poderá ser restaurado depois.':'The listing will be marked as cancelled and can be restored later.'}
+          </p>
+        </Modal>
       )}
 
       {/* TOASTS */}
@@ -331,6 +444,7 @@ function PropDetailModal({ prop, lang, opps, onClose, onViewOpp }) {
         <tr><td style={{ color:'var(--text3)' }}>Área</td><td>{prop.size} m²</td></tr>
         <tr><td style={{ color:'var(--text3)' }}>{pt?'Quartos':'Bedrooms'}</td><td>{prop.beds}</td></tr>
         {prop.chain && <tr><td style={{ color:'var(--text3)' }}>Cadeia</td><td><span style={{ fontWeight:600, color:'var(--blue)' }}>{prop.chain}</span></td></tr>}
+        {prop.approval_status && <tr><td style={{ color:'var(--text3)' }}>Aprovação</td><td><Badge status={prop.approval_status} lang={lang} /></td></tr>}
       </tbody></table>
     </Modal>
   )
@@ -396,7 +510,7 @@ function AddInterestModal({ lang, role, onClose, onSave }) {
   )
 }
 
-// ── Add Listing Modal ─────────────────────────────────────────
+// ── Add / Edit Listing Modal ──────────────────────────────────
 function AddListingModal({ lang, role, onClose, onSave }) {
   const pt = lang === 'pt'
   const [form, setForm] = useState({ name:'', en:'', type:'Apartamento', city:'São Paulo', hood:'', price:'', size:'', beds:2, baths:1, park:1 })
@@ -414,6 +528,9 @@ function AddListingModal({ lang, role, onClose, onSave }) {
         </>
       }
     >
+      <div style={{ padding:'8px 12px', background:'rgba(237,137,54,.08)', border:'1px solid var(--amber)', borderRadius:6, marginBottom:14, fontSize:12, color:'var(--text2)' }}>
+        ℹ️ {pt?'Após publicar, seu anúncio aguardará aprovação do Admin antes de ficar ativo.':'After publishing, your listing will await Admin approval before going live.'}
+      </div>
       <div className="form-group">
         <label className="form-label">{pt?'Título (PT)':'Title (PT)'}</label>
         <input className="form-input" placeholder="Ex: Apto moderno no centro" value={form.name} onChange={e=>set('name',e.target.value)} />

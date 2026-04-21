@@ -6,8 +6,10 @@ export const BADGE_MAP = {
   COMMISSION_PENDING:'b-commission', COMMISSION_PAID:'b-paid',
   CLOSED:'b-closed', CANCELLED:'b-cancelled', OVERDUE:'b-overdue',
   PENDING:'b-pending', PAID:'b-paid',
-  ATIVO:'b-active', MATCH:'b-concretizada', PAUSADO:'b-cancelled',
+  ATIVO:'b-active', MATCH:'b-concretizada', PAUSADO:'b-cancelled', CANCELADO:'b-cancelled',
   active:'b-active', suspended:'b-overdue', pending:'b-pending', blocked:'b-cancelled',
+  pendente:'b-pending', aprovado:'b-approved', rejeitado:'b-cancelled',
+  PENDENTE:'b-pending', BUSCANDO:'b-negotiation', RESOLVIDO:'b-active', DISPENSADO:'b-closed',
 };
 
 export const BADGE_LABELS = {
@@ -17,8 +19,13 @@ export const BADGE_LABELS = {
   COMMISSION_PAID:{pt:'Com. Paga',en:'Comm. Paid'}, CLOSED:{pt:'Encerrado',en:'Closed'},
   OVERDUE:{pt:'Vencida',en:'Overdue'}, PENDING:{pt:'Pendente',en:'Pending'}, PAID:{pt:'Paga',en:'Paid'},
   ATIVO:{pt:'Ativo',en:'Active'}, MATCH:{pt:'Match',en:'Match'}, PAUSADO:{pt:'Pausado',en:'Paused'},
+  CANCELADO:{pt:'Cancelado',en:'Cancelled'},
   active:{pt:'Ativo',en:'Active'}, suspended:{pt:'Suspenso',en:'Suspended'},
   pending:{pt:'Pendente',en:'Pending'}, blocked:{pt:'Bloqueado',en:'Blocked'},
+  pendente:{pt:'Pendente',en:'Pending'}, aprovado:{pt:'Aprovado',en:'Approved'},
+  rejeitado:{pt:'Rejeitado',en:'Rejected'},
+  PENDENTE:{pt:'Pendente',en:'Pending'}, BUSCANDO:{pt:'Buscando',en:'Searching'},
+  RESOLVIDO:{pt:'Resolvido',en:'Resolved'}, DISPENSADO:{pt:'Dispensado',en:'Dismissed'},
 };
 
 export function getBadgeClass(s) { return BADGE_MAP[s] || 'b-closed'; }
@@ -46,18 +53,19 @@ export function fmtPct(v) {
 export const T = {
   nav_dashboard:{pt:'Dashboard',en:'Dashboard'},
   nav_marketplace:{pt:'Marketplace',en:'Marketplace'},
-  nav_properties:{pt:'Imóveis',en:'Properties'},
+  nav_properties:{pt:'Controle de Imóveis',en:'Property Control'},
   nav_my_properties:{pt:'Meus Anúncios',en:'My Listings'},
   nav_interests:{pt:'Meus Interesses',en:'My Interests'},
   nav_opportunities:{pt:'Oportunidades',en:'Opportunities'},
   nav_transactions:{pt:'Transações',en:'Transactions'},
   nav_payments:{pt:'Pagamentos',en:'Payments'},
   nav_analytics:{pt:'Analytics',en:'Analytics'},
-  nav_sourcing:{pt:'Sourcing Ativo',en:'Active Sourcing'},
+  nav_sourcing:{pt:'Sourcing on demand',en:'Sourcing on demand'},
   nav_my_brokers:{pt:'Meus Corretores',en:'My Brokers'},
   nav_agency_analytics:{pt:'Analytics',en:'Analytics'},
   nav_broker_analytics:{pt:'Analytics',en:'Analytics'},
   nav_admin_users:{pt:'Gestão de Usuários',en:'User Management'},
+  nav_admin_approvals:{pt:'Aprovações',en:'Approvals'},
   nav_main:{pt:'Principal',en:'Main'},
   nav_ops:{pt:'Operações',en:'Operations'},
   nav_insights:{pt:'Insights',en:'Insights'},
@@ -95,6 +103,7 @@ export function navLabel(id, lang='pt') {
     analytics: t('nav_analytics',lang), sourcing: t('nav_sourcing',lang),
     'my-brokers': t('nav_my_brokers',lang), 'agency-analytics': t('nav_agency_analytics',lang),
     'broker-analytics': t('nav_broker_analytics',lang), admin_users: t('nav_admin_users',lang),
+    'admin-approvals': t('nav_admin_approvals',lang),
   };
   return map[id] || id;
 }
@@ -102,7 +111,7 @@ export function navLabel(id, lang='pt') {
 export function getNav(role) {
   if (role === 'ADMIN') return [
     {section:'nav_main', items:[{id:'marketplace',icon:'🏠'},{id:'dashboard',icon:'⬡'},{id:'properties',icon:'🏘'}]},
-    {section:'nav_ops', items:[{id:'opportunities',icon:'📋'},{id:'payments',icon:'💳'},{id:'sourcing',icon:'🔍'}]},
+    {section:'nav_ops', items:[{id:'admin-approvals',icon:'✅'},{id:'opportunities',icon:'📋'},{id:'payments',icon:'💳'},{id:'sourcing',icon:'🔍'}]},
     {section:'nav_insights', items:[{id:'analytics',icon:'📊'},{id:'admin_users',icon:'👥'}]},
   ];
   if (role === 'BROKER') return [
@@ -115,27 +124,24 @@ export function getNav(role) {
     {section:'nav_ops', items:[{id:'my-properties',icon:'🏘'},{id:'interests',icon:'🔍'},{id:'my-brokers',icon:'👥'},{id:'transactions',icon:'💼'},{id:'payments',icon:'💳'}]},
     {section:'nav_insights', items:[{id:'agency-analytics',icon:'📊'}]},
   ];
-  // USUARIO
+  // USUARIO — no transactions, no chains
   return [
     {section:'nav_main', items:[{id:'marketplace',icon:'🏠'},{id:'dashboard',icon:'⬡'},{id:'my-properties',icon:'📋'},{id:'interests',icon:'🔍'}]},
-    {section:'nav_ops', items:[{id:'transactions',icon:'💼'}]},
   ];
 }
 
 export function navBadge(id, role, OPPS, PROPS) {
   if (id === 'transactions') {
     let active = [];
-    if (role === 'ADMIN') active = OPPS.filter(o => !['CLOSED','COMMISSION_PAID'].includes(o.status));
-    else if (role === 'BROKER') active = OPPS.filter(o => o.broker_id === 'BRK-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status));
+    if (role === 'BROKER') active = OPPS.filter(o => o.broker_id === 'BRK-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status));
     else if (role === 'AGENCY') active = OPPS.filter(o => o.agency_id === 'AGN-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status));
-    else {
-      const myPids = PROPS.filter(p => p.owner === 'usuario').map(p => p.id);
-      active = OPPS.filter(o => o.participants.some(p => myPids.includes(p.pid)) && !['CLOSED','COMMISSION_PAID'].includes(o.status));
-    }
     return active.length;
   }
   if (id === 'opportunities' && role === 'ADMIN') {
     return OPPS.filter(o => o.status === 'PENDING_REVIEW').length;
+  }
+  if (id === 'admin-approvals' && role === 'ADMIN') {
+    return PROPS.filter(p => p.approval_status === 'pending').length;
   }
   return 0;
 }

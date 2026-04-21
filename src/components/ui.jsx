@@ -124,16 +124,75 @@ export function ToastContainer({ toasts }) {
   )
 }
 
-// ── Pipeline Steps ────────────────────────────────────────────
+// ── Pipeline Steps (improved visual layout) ───────────────────
+const STAGE_LABELS = {
+  PENDING_REVIEW: { pt:'Aguardando\nRevisão', en:'Pending\nReview', icon:'⏳' },
+  APPROVED:       { pt:'Aprovado',         en:'Approved',     icon:'✅' },
+  ASSIGNED:       { pt:'Atribuído',        en:'Assigned',     icon:'👤' },
+  IN_NEGOTIATION: { pt:'Em\nNegociação',   en:'In\nNegotiation', icon:'🤝' },
+  CONCRETIZADA:   { pt:'Concretizada',     en:'Concretized',  icon:'🏆' },
+  COMMISSION_PENDING: { pt:'Comissão\nPendente', en:'Commission\nPending', icon:'💳' },
+  COMMISSION_PAID:    { pt:'Comissão\nPaga',     en:'Commission\nPaid',    icon:'💰' },
+  CLOSED:         { pt:'Encerrado',        en:'Closed',       icon:'🔒' },
+}
+
 export function PipelineSteps({ stages, currentSi }) {
   return (
-    <div className="pipeline-steps">
-      {stages.map((stage, i) => (
-        <div key={stage} className={`ps-step ${i < currentSi ? 'done' : i === currentSi ? 'active' : ''}`}>
-          <div className="ps-dot" />
-          <div className="ps-label">{stage.replace('_',' ')}</div>
-        </div>
-      ))}
+    <div style={{ overflowX:'auto', paddingBottom:4 }}>
+      <div style={{ display:'flex', alignItems:'flex-start', minWidth: stages.length * 100, position:'relative', paddingTop:8 }}>
+        {stages.map((stage, i) => {
+          const isDone = i < currentSi
+          const isActive = i === currentSi
+          const meta = STAGE_LABELS[stage] || { pt: stage.replace(/_/g,' '), en: stage.replace(/_/g,' '), icon:'📌' }
+          const dotColor = isDone ? 'var(--green)' : isActive ? 'var(--primary)' : 'var(--border)'
+          const textColor = isDone ? 'var(--green)' : isActive ? 'var(--primary)' : 'var(--text4)'
+
+          return (
+            <div key={stage} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', position:'relative', minWidth:80 }}>
+              {/* Connector line left */}
+              {i > 0 && (
+                <div style={{
+                  position:'absolute', top:18, right:'50%', left:'-50%', height:2,
+                  background: isDone ? 'var(--green)' : 'var(--border)', zIndex:0,
+                  transition:'background 0.3s'
+                }} />
+              )}
+
+              {/* Circle */}
+              <div style={{
+                width:36, height:36, borderRadius:'50%', position:'relative', zIndex:1,
+                background: isActive ? 'var(--primary)' : isDone ? 'var(--green)' : 'var(--bg2)',
+                border: `2.5px solid ${dotColor}`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:16, transition:'all 0.3s',
+                boxShadow: isActive ? '0 0 0 4px rgba(99,102,241,.2)' : 'none'
+              }}>
+                {isDone ? (
+                  <span style={{ fontSize:16, color:'#fff' }}>✓</span>
+                ) : (
+                  <span style={{ fontSize:isActive?16:14, filter: isActive?'none':'grayscale(0.6)' }}>
+                    {meta.icon}
+                  </span>
+                )}
+              </div>
+
+              {/* Label */}
+              <div style={{
+                marginTop:8, fontSize:9.5, fontWeight: isActive ? 700 : 500,
+                color: textColor, textAlign:'center', lineHeight:1.35,
+                whiteSpace:'pre-line', maxWidth:72
+              }}>
+                {meta.pt}
+              </div>
+
+              {/* Step number */}
+              <div style={{ fontSize:8.5, color:'var(--text4)', marginTop:2 }}>
+                {i+1}/{stages.length}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -168,7 +227,6 @@ export function ImportModal({ lang='pt', onClose, onImport }) {
         <input type="checkbox" id="imp-terms" /> {pt?'Aceito os termos de comissão de 6%':'I accept the 6% commission terms'}
       </label>
 
-      {/* CSV Layout Instructions */}
       <div style={{ marginTop:14, padding:12, background:'var(--bg2)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)' }}>
         <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:1, color:'var(--text3)', marginBottom:8 }}>
           📋 {pt?'Layout do Arquivo CSV':'CSV File Layout'}
