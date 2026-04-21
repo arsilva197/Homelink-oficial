@@ -1,9 +1,19 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
-import { PROPS as PROPS_DATA, INTERESTS as INT_DATA, CHAINS, OPPS as OPPS_DATA,
-  USERS_DATA, BROKERS_DATA, AGENCIES_DATA, COMM_HISTORY, ALERTS, ROLES } from '../data/mockData'
+import { CHAINS, USERS_DATA, BROKERS_DATA, AGENCIES_DATA, COMM_HISTORY, ALERTS, ROLES } from '../data/mockData'
 import { t, navLabel, getNav, navBadge, fmtPrice, fmtN, fmtPct,
   getBadgeClass, getBadgeLabel, PROP_GRADIENTS, PROP_ICONS } from '../lib/utils'
+import {
+  bootstrapData,
+  insertProperty, updatePropertyStatus as dbUpdatePropStatus,
+  approveProperty as dbApproveProp, rejectProperty as dbRejectProp,
+  insertInterest, updateInterest as dbUpdateInterest,
+  updateInterestStatus as dbUpdateInterestStatus,
+  updateOpportunityPipeline, updateOpportunityAssignment, updateOpportunitySplit,
+  updateCommissionStatus as dbUpdateCommStatus,
+  MOCK_PROPS, MOCK_INTERESTS, MOCK_OPPS,
+} from '../lib/db'
+import { isSupabaseEnabled } from '../lib/supabase'
 import { Badge, Modal, ToastContainer, PropCard, KpiCard, MetricRow,
   PipelineSteps, ImportModal } from './ui'
 
@@ -30,17 +40,28 @@ export default function HomeLinkApp() {
   const [lang, setLang] = useState('pt')
   const [theme, setTheme] = useState('light')
   const [screen, setScreen] = useState('marketplace')
-  const [props, setProps] = useState(PROPS_DATA)
-  const [interests, setInterests] = useState(INT_DATA)
-  const [opps, setOpps] = useState(OPPS_DATA)
+  const [props, setProps] = useState(MOCK_PROPS)
+  const [interests, setInterests] = useState(MOCK_INTERESTS)
+  const [opps, setOpps] = useState(MOCK_OPPS)
   const [toasts, setToasts] = useState([])
   const [modal, setModal] = useState(null)
   const [selectedOpp, setSelectedOpp] = useState(null)
   const [demoMode, setDemoMode] = useState(false)
+  const [loading, setLoading] = useState(isSupabaseEnabled)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!isSupabaseEnabled) return
+    bootstrapData().then(({ props: p, interests: i, chains: _c, opps: o }) => {
+      setProps(p)
+      setInterests(i)
+      setOpps(o)
+      setLoading(false)
+    }).catch(() => setLoading(false))
+  }, [])
 
   const toast = useCallback((message, type='info') => {
     const id = Date.now()
@@ -80,6 +101,7 @@ export default function HomeLinkApp() {
     setOpps(prev => prev.map(o => {
       if (o.id !== oppId) return o
       const next = Math.min(o.si + 1, PL.length - 1)
+      updateOpportunityPipeline(oppId, next, PL[next])
       return { ...o, si: next, status: PL[next] }
     }))
     toast('Oportunidade avançada ✓', 'success')
@@ -89,6 +111,7 @@ export default function HomeLinkApp() {
     setOpps(prev => prev.map(o => {
       if (o.id !== oppId) return o
       const prev_si = Math.max(o.si - 1, 0)
+      updateOpportunityPipeline(oppId, prev_si, PL[prev_si])
       return { ...o, si: prev_si, status: PL[prev_si] }
     }))
   }, [])
@@ -98,6 +121,7 @@ export default function HomeLinkApp() {
       if (o.id !== oppId) return o
       return { ...o, commissions: o.commissions.map(c => c.ref === ref ? {...c, status} : c) }
     }))
+    dbUpdateCommStatus(ref, status)
   }, [])
 
   // Toggle property status: pause / activate / remove (cancel)
@@ -113,6 +137,7 @@ export default function HomeLinkApp() {
         audit: [...(p.audit||[]), { date: now, event: eventMap[action], user: lang==='pt'?'Usuário':'User', type:'status' }]
       }
     }))
+    dbUpdatePropStatus(propId, action)
     const msgs = {
       pause: lang==='pt'?'Anúncio pausado':'Listing paused',
       activate: lang==='pt'?'Anúncio reativado':'Listing reactivated',
@@ -134,6 +159,7 @@ export default function HomeLinkApp() {
         audit: [...(p.audit||[]), { date:now, event:'Aprovado pelo Admin', user:'Admin Demo', type:'approved' }, { date:now, event:'Status: Ativo', user:'Sistema', type:'status' }]
       }
     }))
+    dbApproveProp(propId)
     toast(lang==='pt'?'Anúncio aprovado ✓':'Listing approved ✓', 'success')
   }, [lang, toast])
 
@@ -148,6 +174,7 @@ export default function HomeLinkApp() {
         audit: [...(p.audit||[]), { date:now, event:'Rejeitado pelo Admin', user:'Admin Demo', type:'rejected' }]
       }
     }))
+    dbRejectProp(propId)
     toast(lang==='pt'?'Anúncio rejeitado':'Listing rejected', 'info')
   }, [lang, toast])
 
@@ -163,16 +190,24 @@ export default function HomeLinkApp() {
         agency_id: agency?.id || null,
       }
     }))
+    updateOpportunityAssignment(oppId, broker, agency)
+  }, [])
+
+  // Update commission split percentages
+  const updateOppSplit = useCallback((oppId, split) => {
+    setOpps(prev => prev.map(o => o.id !== oppId ? o : { ...o, split }))
+    updateOpportunitySplit(oppId, split)
   }, [])
 
   // Shared context passed to all screens
   const ctx = {
-    role, lang, theme, props, interests, opps, toasts,
+    role, lang, theme, props, interests, opps, toasts, loading,
     CHAINS, USERS_DATA, BROKERS_DATA, AGENCIES_DATA, COMM_HISTORY, ALERTS, ROLES, PL,
     navigate, openOpp, toggleFav, switchRole,
     advanceOpp, retreatOpp, updateCommStatus,
-    togglePropStatus, approveProp, rejectProp, assignBrokerToOpp,
+    togglePropStatus, approveProp, rejectProp, assignBrokerToOpp, updateOppSplit,
     toast, setModal, setProps, setInterests, setOpps,
+    dbUpdateInterest, dbUpdateInterestStatus,
     t: (k) => t(k, lang),
     fmtPrice, fmtN, fmtPct,
   }
@@ -316,7 +351,13 @@ export default function HomeLinkApp() {
         </div>
 
         <div className="content">
-          {renderScreen()}
+          {loading
+            ? <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', flexDirection:'column', gap:16, color:'var(--text3)' }}>
+                <div style={{ width:36, height:36, border:'3px solid var(--border)', borderTopColor:'var(--blue)', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
+                <span style={{ fontSize:13 }}>{lang==='pt'?'Carregando dados...':'Loading data...'}</span>
+              </div>
+            : renderScreen()
+          }
         </div>
       </div>
 
@@ -343,18 +384,21 @@ export default function HomeLinkApp() {
 
       {modal?.type === 'addInterest' && (
         <AddInterestModal lang={lang} role={role} onClose={() => setModal(null)}
-          onSave={(data) => {
+          onSave={async (data) => {
             const ownerKey = role==='BROKER'?'broker':role==='AGENCY'?'agency':'usuario'
-            setInterests(prev => [...prev, { id:`INT-${Date.now()}`, owner:ownerKey, status:'ATIVO', sourcing_status:'PENDENTE', ...data }])
+            const newInt = { id:`INT-${Date.now()}`, owner:ownerKey, status:'ATIVO', sourcing_status:'PENDENTE', ...data }
+            setInterests(prev => [...prev, newInt])
             setModal(null)
             toast(lang==='pt'?'Interesse cadastrado ✓':'Interest added ✓','success')
+            const saved = await insertInterest({ ...newInt, user_id: null })
+            if (saved) setInterests(prev => prev.map(i => i.id === newInt.id ? { ...i, id: saved.id } : i))
           }}
         />
       )}
 
       {modal?.type === 'addListing' && (
         <AddListingModal lang={lang} role={role} onClose={() => setModal(null)}
-          onSave={(data) => {
+          onSave={async (data) => {
             if (modal.data) {
               // Edit existing
               setProps(prev => prev.map(p => p.id === modal.data.id ? { ...p, ...data } : p))
@@ -363,14 +407,17 @@ export default function HomeLinkApp() {
               // Create new — starts as pending approval
               const ownerKey = role==='USUARIO'?'usuario':'outro'
               const now = new Date().toISOString().slice(0,10)
-              setProps(prev => [...prev, {
+              const newProp = {
                 id:`PROP-${Date.now()}`, owner:ownerKey, status:'pendente',
                 chain:null, fav:false, reg:now,
                 approval_status:'pending',
                 audit:[{ date:now, event:'Anúncio criado — aguardando aprovação', user:ROLES[role]?.user_pt||'Usuário', type:'created' }],
                 ...data
-              }])
+              }
+              setProps(prev => [...prev, newProp])
               toast(lang==='pt'?'Anúncio enviado para aprovação ⏳':'Listing sent for approval ⏳','info')
+              const saved = await insertProperty({ ...newProp, user_id: null })
+              if (saved) setProps(prev => prev.map(p => p.id === newProp.id ? { ...p, id: saved.id } : p))
             }
             setModal(null)
           }}
