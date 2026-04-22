@@ -549,6 +549,7 @@ function AddInterestModal({ lang, role, onClose, onSave }) {
           minVal={form.min_p} maxVal={form.max_p}
           onMinChange={v=>set('min_p',v)} onMaxChange={v=>set('max_p',v)}
           min={0} max={10000000} step={50000}
+          hideInputs
         />
       </div>
 
@@ -586,8 +587,18 @@ function AddListingModal({ lang, role, onClose, onSave }) {
     city:'', hood:'', state:'',
     priceDisplay:'', size:'', beds:2, baths:1, park:1
   })
+  const [photos, setPhotos] = useState([])   // up to 5 object URLs
   const [cepStatus, setCepStatus] = useState('')   // 'loading' | 'ok' | 'error' | ''
   const set = (k,v) => setForm(f => ({...f, [k]:v}))
+
+  const handlePhotoFiles = (files) => {
+    const remaining = 5 - photos.length
+    if (remaining <= 0) return
+    const picked = Array.from(files).slice(0, remaining)
+    const urls = picked.map(f => URL.createObjectURL(f))
+    setPhotos(prev => [...prev, ...urls])
+  }
+  const removePhoto = (i) => setPhotos(prev => prev.filter((_,idx) => idx !== i))
 
   const handleCep = async (raw) => {
     const cep = raw.replace(/\D/g,'')
@@ -624,6 +635,7 @@ function AddListingModal({ lang, role, onClose, onSave }) {
               beds: Number(form.beds),
               baths: Number(form.baths),
               park: Number(form.park),
+              photos,
             })
           }}>Publicar</button>
         </>
@@ -711,6 +723,41 @@ function AddListingModal({ lang, role, onClose, onSave }) {
           <label className="form-label">Vagas</label>
           <input className="form-input" type="number" min="0" value={form.park} onChange={e=>set('park',e.target.value)} />
         </div>
+      </div>
+
+      {/* ── Fotos ── */}
+      <div className="form-group" style={{ marginTop:4 }}>
+        <label className="form-label">
+          Fotos do imóvel
+          <span style={{ fontWeight:400, color:'var(--text3)', marginLeft:6 }}>({photos.length}/5)</span>
+        </label>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
+          {Array.from({ length: 5 }).map((_, i) => {
+            const url = photos[i]
+            return url ? (
+              <div key={i} style={{ position:'relative', aspectRatio:'1', borderRadius:6, overflow:'hidden', border:'1px solid var(--border)' }}>
+                <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                <button
+                  onClick={() => removePhoto(i)}
+                  style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,.6)', color:'#fff', border:'none', cursor:'pointer', fontSize:11, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  ×
+                </button>
+              </div>
+            ) : photos.length === i ? (
+              <label key={i} style={{ aspectRatio:'1', borderRadius:6, border:'1.5px dashed var(--border)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:20, color:'var(--text3)', gap:4 }}>
+                <span>📷</span>
+                <span style={{ fontSize:9.5 }}>Adicionar</span>
+                <input type="file" accept="image/*" multiple style={{ display:'none' }}
+                  onChange={e => handlePhotoFiles(e.target.files)} />
+              </label>
+            ) : (
+              <div key={i} style={{ aspectRatio:'1', borderRadius:6, border:'1px dashed var(--border)', background:'var(--bg2)', opacity:.35 }} />
+            )
+          })}
+        </div>
+        <p style={{ fontSize:11, color:'var(--text3)', marginTop:5 }}>
+          Até 5 fotos (JPG, PNG ou WEBP). Arraste ou clique no ícone de câmera para adicionar.
+        </p>
       </div>
     </Modal>
   )

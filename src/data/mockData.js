@@ -9,6 +9,7 @@ export const ROLES = {
 
 export const PROPS = [
   {id:'PROP-001',name:'Apto Jardins',en:'Jardins Apt',type:'Apartamento',city:'São Paulo',hood:'Jardins',price:850000,size:82,beds:2,baths:2,park:1,status:'ativo',chain:'CHN-A',owner:'usuario',fav:false,reg:'2024-09-15',
+   photos:['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1560185893-0e0b6e6d42b6?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-15',event:'Anúncio criado',user:'Carlos Mendes',type:'created'},
@@ -17,6 +18,7 @@ export const PROPS = [
      {date:'2024-10-15',event:'Incluído em cadeia CHN-A',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-002',name:'Casa Perdizes',en:'Perdizes House',type:'Casa',city:'São Paulo',hood:'Perdizes',price:1200000,size:180,beds:3,baths:3,park:2,status:'ativo',chain:'CHN-A',owner:'outro',fav:false,reg:'2024-09-18',
+   photos:['https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-18',event:'Anúncio criado',user:'João Corretor',type:'created'},
@@ -25,6 +27,7 @@ export const PROPS = [
      {date:'2024-10-15',event:'Incluído em cadeia CHN-A',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-003',name:'Apto Vila Madalena',en:'Vila Madalena',type:'Apartamento',city:'São Paulo',hood:'Vila Madalena',price:720000,size:68,beds:2,baths:1,park:1,status:'ativo',chain:'CHN-A',owner:'outro',fav:true,reg:'2024-09-20',
+   photos:['https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-20',event:'Anúncio criado',user:'Imobiliária Paulista',type:'created'},
@@ -33,6 +36,7 @@ export const PROPS = [
      {date:'2024-10-15',event:'Incluído em cadeia CHN-A',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-004',name:'Apto Ipanema',en:'Ipanema Apt',type:'Apartamento',city:'Rio de Janeiro',hood:'Ipanema',price:1650000,size:95,beds:3,baths:2,park:1,status:'ativo',chain:'CHN-B',owner:'outro',fav:false,reg:'2024-09-22',
+   photos:['https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-22',event:'Anúncio criado',user:'João Corretor',type:'created'},
@@ -41,6 +45,7 @@ export const PROPS = [
      {date:'2024-10-28',event:'Incluído em cadeia CHN-B',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-005',name:'Cobertura Leblon',en:'Leblon Penthouse',type:'Apartamento',city:'Rio de Janeiro',hood:'Leblon',price:4200000,size:280,beds:4,baths:4,park:3,status:'pausado',chain:null,owner:'outro',fav:false,reg:'2024-09-25',
+   photos:['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-25',event:'Anúncio criado',user:'RJ Imóveis',type:'created'},
@@ -49,6 +54,7 @@ export const PROPS = [
      {date:'2024-10-10',event:'Status: Pausado',user:'RJ Imóveis',type:'status'},
    ]},
   {id:'PROP-006',name:'Apto Savassi',en:'Savassi Apt',type:'Apartamento',city:'Belo Horizonte',hood:'Savassi',price:580000,size:65,beds:2,baths:1,park:1,status:'ativo',chain:'CHN-B',owner:'outro',fav:false,reg:'2024-09-28',
+   photos:['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-09-28',event:'Anúncio criado',user:'BH Prime',type:'created'},
@@ -57,6 +63,7 @@ export const PROPS = [
      {date:'2024-10-28',event:'Incluído em cadeia CHN-B',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-007',name:'Casa Lourdes',en:'Lourdes House',type:'Casa',city:'Belo Horizonte',hood:'Lourdes',price:890000,size:160,beds:3,baths:2,park:2,status:'ativo',chain:'CHN-C',owner:'outro',fav:false,reg:'2024-10-02',
+   photos:['https://images.unsplash.com/photo-1516455590571-18256d5457f8?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-10-02',event:'Anúncio criado',user:'BH Prime',type:'created'},
@@ -65,6 +72,7 @@ export const PROPS = [
      {date:'2024-11-05',event:'Incluído em cadeia CHN-C',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-008',name:'Studio Pinheiros',en:'Pinheiros Studio',type:'Apartamento',city:'São Paulo',hood:'Pinheiros',price:420000,size:38,beds:1,baths:1,park:0,status:'pausado',chain:null,owner:'outro',fav:false,reg:'2024-10-05',
+   photos:['https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-10-05',event:'Anúncio criado',user:'João Corretor',type:'created'},
@@ -73,6 +81,7 @@ export const PROPS = [
      {date:'2024-10-20',event:'Status: Pausado',user:'João Corretor',type:'status'},
    ]},
   {id:'PROP-009',name:'Apto Botafogo',en:'Botafogo Apt',type:'Apartamento',city:'Rio de Janeiro',hood:'Botafogo',price:980000,size:88,beds:3,baths:2,park:1,status:'ativo',chain:'CHN-C',owner:'outro',fav:true,reg:'2024-10-08',
+   photos:['https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-10-08',event:'Anúncio criado',user:'RJ Imóveis',type:'created'},
@@ -81,6 +90,7 @@ export const PROPS = [
      {date:'2024-11-05',event:'Incluído em cadeia CHN-C',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-010',name:'Casa Moema',en:'Moema House',type:'Casa',city:'São Paulo',hood:'Moema',price:1450000,size:220,beds:4,baths:3,park:2,status:'ativo',chain:null,owner:'usuario',fav:false,reg:'2024-11-08',
+   photos:['https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80','https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-11-08',event:'Anúncio criado',user:'Carlos Mendes',type:'created'},
@@ -88,6 +98,7 @@ export const PROPS = [
      {date:'2024-11-09',event:'Status: Ativo',user:'Sistema',type:'status'},
    ]},
   {id:'PROP-011',name:'Apto Copacabana',en:'Copacabana Apt',type:'Apartamento',city:'Rio de Janeiro',hood:'Copacabana',price:680000,size:70,beds:2,baths:1,park:1,status:'ativo',chain:'CHN-D',owner:'outro',fav:false,reg:'2024-11-10',
+   photos:['https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-11-10',event:'Anúncio criado',user:'RJ Imóveis',type:'created'},
@@ -96,6 +107,7 @@ export const PROPS = [
      {date:'2024-11-20',event:'Incluído em cadeia CHN-D',user:'Sistema',type:'chain'},
    ]},
   {id:'PROP-012',name:'Sala Comercial SP',en:'SP Commercial',type:'Comercial',city:'São Paulo',hood:'Paulista',price:380000,size:45,beds:0,baths:1,park:1,status:'pausado',chain:null,owner:'outro',fav:false,reg:'2024-11-15',
+   photos:['https://images.unsplash.com/photo-1486325212027-8081e485255e?auto=format&fit=crop&w=800&q=80'],
    approval_status:'approved',
    audit:[
      {date:'2024-11-15',event:'Anúncio criado',user:'Imobiliária Paulista',type:'created'},

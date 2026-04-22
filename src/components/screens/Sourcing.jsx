@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Badge, Modal } from '../ui'
 import { fmtPrice } from '../../lib/utils'
 
-const SOURCING_STATUSES = ['PENDENTE','BUSCANDO','RESOLVIDO','DISPENSADO']
+const SOURCING_STATUSES = ['PENDENTE','BUSCANDO','EM_ATENDIMENTO','RESOLVIDO','DISPENSADO']
 
 // ── Sourcing on demand ─────────────────────────────────────────
 export function ScreenSourcing({ ctx }) {
@@ -19,11 +19,15 @@ export function ScreenSourcing({ ctx }) {
 
   const statusColors = {
     PENDENTE: 'var(--amber)', BUSCANDO: 'var(--blue)',
+    EM_ATENDIMENTO: 'var(--primary)',
     RESOLVIDO: 'var(--green)', DISPENSADO: 'var(--text3)'
   }
   const statusLabels = {
-    PENDENTE:{pt:'Pendente',en:'Pending'}, BUSCANDO:{pt:'Buscando',en:'Searching'},
-    RESOLVIDO:{pt:'Resolvido',en:'Resolved'}, DISPENSADO:{pt:'Dispensado',en:'Dismissed'}
+    PENDENTE:      { pt:'Pendente',       en:'Pending' },
+    BUSCANDO:      { pt:'Buscando',       en:'Searching' },
+    EM_ATENDIMENTO:{ pt:'Em Atendimento', en:'In Progress' },
+    RESOLVIDO:     { pt:'Resolvido',      en:'Resolved' },
+    DISPENSADO:    { pt:'Dispensado',     en:'Dismissed' },
   }
 
   return (
@@ -138,17 +142,17 @@ export function ScreenSourcing({ ctx }) {
                         </div>
                       )}
                       <div style={{ display:'flex', gap:8 }}>
-                        <button className="btn btn-primary btn-sm"
-                          onClick={() => { updateSourcingStatus(item.id,'BUSCANDO'); toast(pt?'Busca externa iniciada':'External search started','info') }}>
-                          🔍 {pt?'Iniciar Busca':'Start Search'}
-                        </button>
                         <button className="btn btn-secondary btn-sm"
-                          onClick={() => updateSourcingStatus(item.id,'DISPENSADO')}>
-                          {pt?'Dispensar':'Dismiss'}
+                          onClick={() => updateSourcingStatus(item.id,'EM_ATENDIMENTO')}>
+                          🤝 {pt?'Em Atendimento':'In Progress'}
                         </button>
                         <button className="btn btn-secondary btn-sm" style={{ color:'var(--green)' }}
                           onClick={() => updateSourcingStatus(item.id,'RESOLVIDO')}>
                           ✓ {pt?'Marcar Resolvido':'Mark Resolved'}
+                        </button>
+                        <button className="btn btn-secondary btn-sm" style={{ color:'var(--text3)' }}
+                          onClick={() => updateSourcingStatus(item.id,'DISPENSADO')}>
+                          {pt?'Dispensar':'Dismiss'}
                         </button>
                       </div>
                     </div>

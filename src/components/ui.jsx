@@ -50,10 +50,17 @@ export function PropCard({ prop, index, canManage, showFav, lang='pt', role, onF
   return (
     <div className="prop-card" onClick={() => onClick && onClick(prop)}>
       <div className="prop-img" style={{ position:'relative' }}>
+        {prop.photos?.[0] ? (
+          <img src={prop.photos[0]} alt={prop.name}
+            style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+            onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex' }}
+          />
+        ) : null}
         <div style={{
           width:'100%', height:'100%',
           background: `linear-gradient(135deg,${c1},${c2})`,
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:'52px'
+          display: prop.photos?.[0] ? 'none' : 'flex',
+          alignItems:'center', justifyContent:'center', fontSize:'52px'
         }}>{icon}</div>
         {showFav && (
           <span
@@ -205,7 +212,7 @@ export function PipelineSteps({ stages, currentSi }) {
 }
 
 // ── Price Range Slider ────────────────────────────────────────
-export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, step=50000, min=0, max=10000000 }) {
+export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, step=50000, min=0, max=10000000, hideInputs=false }) {
   const fmtBRL = v => {
     if (!v && v !== 0) return 'R$ 0'
     if (v >= 1000000) return 'R$ ' + (v/1000000).toFixed(1).replace(/\.?0+$/,'') + 'M'
@@ -238,15 +245,17 @@ export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, ste
         />
       </div>
       {/* Manual inputs */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:6, alignItems:'center' }}>
-        <input className="form-input" type="number" value={minVal} step={step} min={min} max={maxVal - step}
-          onChange={e => onMinChange(Math.max(min, Math.min(Number(e.target.value), maxVal - step)))}
-          style={{ fontSize:12, padding:'5px 8px' }} placeholder="Mín" />
-        <span style={{ fontSize:11, color:'var(--text3)' }}>até</span>
-        <input className="form-input" type="number" value={maxVal} step={step} min={minVal + step} max={max}
-          onChange={e => onMaxChange(Math.min(max, Math.max(Number(e.target.value), minVal + step)))}
-          style={{ fontSize:12, padding:'5px 8px' }} placeholder="Máx" />
-      </div>
+      {!hideInputs && (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:6, alignItems:'center' }}>
+          <input className="form-input" type="number" value={minVal} step={step} min={min} max={maxVal - step}
+            onChange={e => onMinChange(Math.max(min, Math.min(Number(e.target.value), maxVal - step)))}
+            style={{ fontSize:12, padding:'5px 8px' }} placeholder="Mín" />
+          <span style={{ fontSize:11, color:'var(--text3)' }}>até</span>
+          <input className="form-input" type="number" value={maxVal} step={step} min={minVal + step} max={max}
+            onChange={e => onMaxChange(Math.min(max, Math.max(Number(e.target.value), minVal + step)))}
+            style={{ fontSize:12, padding:'5px 8px' }} placeholder="Máx" />
+        </div>
+      )}
     </div>
   )
 }
