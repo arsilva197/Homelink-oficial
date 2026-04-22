@@ -41,7 +41,7 @@ export function KpiCard({ label, value, sub, icon, color, onClick }) {
 }
 
 // ── Property Card ─────────────────────────────────────────────
-export function PropCard({ prop, index, canManage, showFav, lang='pt', role, onFavToggle, onClick, onEdit }) {
+export function PropCard({ prop, index, canManage, showFav, lang='pt', role, hideStatus=false, onFavToggle, onClick, onEdit }) {
   const gi = index % PROP_GRADIENTS.length
   const [c1, c2] = PROP_GRADIENTS[gi]
   const icon = PROP_ICONS[index % PROP_ICONS.length]
@@ -71,7 +71,7 @@ export function PropCard({ prop, index, canManage, showFav, lang='pt', role, onF
           </span>
         )}
         <div className="prop-img-badge">
-          <Badge status={st} lang={lang} />
+          {!hideStatus && <Badge status={st} lang={lang} />}
           {prop.chain && role !== 'USUARIO' && (
             <span style={{ marginLeft:3, background:'var(--blue)', color:'#fff', fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:4 }}>
               {prop.chain}
@@ -233,15 +233,15 @@ export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, ste
       <div style={{ position:'relative', height:6, marginBottom:12 }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:6, background:'var(--border)', borderRadius:3 }} />
         <div style={{ position:'absolute', top:0, left:`${minPct}%`, right:`${100-maxPct}%`, height:6, background:'var(--primary)', borderRadius:3 }} />
-        {/* Min thumb */}
+        {/* Min thumb — zIndex raised when near max so user can always grab it */}
         <input type="range" min={min} max={max} step={step} value={minVal}
           onChange={e => { const v = Math.min(Number(e.target.value), maxVal - step); onMinChange(v) }}
-          style={{ position:'absolute', width:'100%', height:6, appearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0 }}
+          style={{ position:'absolute', width:'100%', height:6, appearance:'none', WebkitAppearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0, zIndex: minPct >= maxPct - 8 ? 5 : 3 }}
         />
         {/* Max thumb */}
         <input type="range" min={min} max={max} step={step} value={maxVal}
           onChange={e => { const v = Math.max(Number(e.target.value), minVal + step); onMaxChange(v) }}
-          style={{ position:'absolute', width:'100%', height:6, appearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0 }}
+          style={{ position:'absolute', width:'100%', height:6, appearance:'none', WebkitAppearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0, zIndex:4 }}
         />
       </div>
       {/* Manual inputs */}

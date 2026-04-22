@@ -90,10 +90,8 @@ function DdRow({ doc, checked, uploads, canEdit, onToggle, onUpload }) {
       </td>
       <td style={{ padding:'9px 10px', textAlign:'center', border:'1px solid var(--border)', verticalAlign:'middle', width:72 }}>
         {canEdit ? (
-          <label style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-            <input type="checkbox" checked={checked} onChange={e => onToggle(e.target.checked)} style={{ cursor:'pointer' }} />
-            <span style={{ fontSize:14 }}>{checked ? '✅' : '⬜'}</span>
-          </label>
+          <input type="checkbox" checked={checked} onChange={e => onToggle(e.target.checked)}
+            style={{ cursor:'pointer', width:16, height:16, accentColor:'var(--green)' }} />
         ) : (
           <span style={{ fontSize:16 }}>{checked ? '✅' : '❌'}</span>
         )}

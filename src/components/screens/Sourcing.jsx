@@ -6,8 +6,22 @@ import { fmtPrice } from '../../lib/utils'
 const SOURCING_STATUSES = ['PENDENTE','BUSCANDO','EM_ATENDIMENTO','RESOLVIDO','DISPENSADO']
 
 // ── Sourcing on demand ─────────────────────────────────────────
+function ownerContact(item, USERS_DATA, BROKERS_DATA, AGENCIES_DATA) {
+  if (item.owner === 'broker') {
+    const b = BROKERS_DATA?.[0]
+    return b ? { name: b.name, phone: b.phone, email: b.email || null, role: 'Corretor', creci: b.creci } : null
+  }
+  if (item.owner === 'agency') {
+    const a = AGENCIES_DATA?.[0]
+    return a ? { name: a.name, phone: null, email: null, role: 'Imobiliária' } : null
+  }
+  // usuario
+  const u = USERS_DATA?.[0]
+  return u ? { name: u.name, phone: null, email: u.email, role: 'Usuário' } : null
+}
+
 export function ScreenSourcing({ ctx }) {
-  const { lang, interests, setInterests, toast } = ctx
+  const { lang, interests, setInterests, toast, USERS_DATA, BROKERS_DATA, AGENCIES_DATA } = ctx
   const pt = lang === 'pt'
   const unmatched = interests.filter(i => i.status === 'ATIVO')
   const [expanded, setExpanded] = useState(null)
@@ -96,7 +110,9 @@ export function ScreenSourcing({ ctx }) {
                   </div>
 
                   {/* Expanded full details */}
-                  {isExpanded && (
+                  {isExpanded && (() => {
+                    const contact = ownerContact(item, USERS_DATA, BROKERS_DATA, AGENCIES_DATA)
+                    return (
                     <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid var(--border)' }}>
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))', gap:12, marginBottom:12 }}>
                         <div>
@@ -141,6 +157,35 @@ export function ScreenSourcing({ ctx }) {
                           📝 {item.notes}
                         </div>
                       )}
+                      {/* ── Contato do anunciante ── */}
+                      {contact && (
+                        <div style={{ margin:'12px 0', padding:'12px 14px', background:'rgba(49,130,206,.07)', border:'1px solid rgba(49,130,206,.25)', borderRadius:8 }}>
+                          <div style={{ fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:.8, color:'var(--blue)', marginBottom:8 }}>
+                            👤 {pt?'Anunciante / Contato':'Listing Contact'}
+                          </div>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:16, alignItems:'center' }}>
+                            <div>
+                              <div style={{ fontSize:13, fontWeight:700, color:'var(--text1)' }}>{contact.name}</div>
+                              <div style={{ fontSize:11, color:'var(--text3)' }}>{contact.role}{contact.creci ? ` · CRECI ${contact.creci}` : ''}</div>
+                            </div>
+                            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                              {contact.email && (
+                                <a href={`mailto:${contact.email}`}
+                                  style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 12px', background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:6, fontSize:12, color:'var(--text1)', textDecoration:'none', fontWeight:600 }}>
+                                  ✉️ {contact.email}
+                                </a>
+                              )}
+                              {contact.phone && (
+                                <a href={`https://wa.me/${contact.phone}`} target="_blank" rel="noopener noreferrer"
+                                  style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 12px', background:'#25d366', color:'#fff', borderRadius:6, fontSize:12, fontWeight:700, textDecoration:'none' }}>
+                                  📱 WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div style={{ display:'flex', gap:8 }}>
                         <button className="btn btn-secondary btn-sm"
                           onClick={() => updateSourcingStatus(item.id,'EM_ATENDIMENTO')}>
@@ -156,7 +201,8 @@ export function ScreenSourcing({ ctx }) {
                         </button>
                       </div>
                     </div>
-                  )}
+                    )
+                  })()}
                 </div>
               </div>
             )

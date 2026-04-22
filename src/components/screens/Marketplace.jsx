@@ -75,6 +75,8 @@ export default function ScreenMarketplace({ ctx }) {
               canManage={false}
               showFav={true}
               lang={lang}
+              role={role}
+              hideStatus
               onFavToggle={toggleFav}
               onClick={prop => setModal({ type:'propDetail', data:prop })}
             />

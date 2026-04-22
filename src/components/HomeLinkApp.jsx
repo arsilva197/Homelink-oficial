@@ -162,7 +162,7 @@ export default function HomeLinkApp() {
     toast(lang==='pt'?'Anúncio aprovado ✓':'Listing approved ✓', 'success')
   }, [lang, toast])
 
-  const rejectProp = useCallback((propId) => {
+  const rejectProp = useCallback((propId, reason='') => {
     setProps(prev => prev.map(p => {
       if (p.id !== propId) return p
       const now = new Date().toISOString().slice(0,10)
@@ -170,7 +170,8 @@ export default function HomeLinkApp() {
         ...p,
         status: 'cancelado',
         approval_status: 'rejected',
-        audit: [...(p.audit||[]), { date:now, event:'Rejeitado pelo Admin', user:'Admin Demo', type:'rejected' }]
+        rejection_reason: reason || null,
+        audit: [...(p.audit||[]), { date:now, event:`Rejeitado pelo Admin${reason ? ': '+reason : ''}`, user:'Admin Demo', type:'rejected' }]
       }
     }))
     dbRejectProp(propId)
@@ -370,7 +371,7 @@ export default function HomeLinkApp() {
       )}
 
       {modal?.type === 'propDetail' && modal.data && (
-        <PropDetailModal prop={modal.data} lang={lang} opps={opps} onClose={() => setModal(null)} onViewOpp={(o) => { setModal(null); openOpp(o.id) }} />
+        <PropDetailModal prop={modal.data} lang={lang} role={role} opps={opps} onClose={() => setModal(null)} onViewOpp={(o) => { setModal(null); openOpp(o.id) }} />
       )}
 
       {modal?.type === 'addInterest' && (
@@ -448,41 +449,69 @@ export default function HomeLinkApp() {
 }
 
 // ── Prop Detail Modal ─────────────────────────────────────────
-function PropDetailModal({ prop, lang, opps, onClose, onViewOpp }) {
+function PropDetailModal({ prop, lang, role, opps, onClose, onViewOpp }) {
   const pt = lang === 'pt'
   const gi = 0
   const [c1, c2] = PROP_GRADIENTS[gi]
+  const icon = PROP_ICONS[0]
   const opp = opps.find(o => o.participants.some(p => p.pid === prop.id))
+  const photos = prop.photos || []
+  const [photoIdx, setPhotoIdx] = useState(0)
+  const creator = prop.audit?.[0]
 
   return (
-    <Modal title={lang==='pt'?prop.name:prop.en} onClose={onClose}
+    <Modal title={prop.name} onClose={onClose}
       footer={
         <>
-          <button className="btn btn-secondary" onClick={onClose}>{pt?'Fechar':'Close'}</button>
-          {opp && <button className="btn btn-primary" onClick={() => onViewOpp(opp)}>{pt?'Ver Transação':'View Transaction'}</button>}
+          <button className="btn btn-secondary" onClick={onClose}>Fechar</button>
+          {opp && <button className="btn btn-primary" onClick={() => onViewOpp(opp)}>Ver Oportunidade →</button>}
         </>
       }
     >
-      <div style={{ height:180, borderRadius:8, marginBottom:14, background:`linear-gradient(135deg,${c1},${c2})`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>
-        🏠
+      {/* ── Hero / Carousel ── */}
+      <div style={{ height:210, borderRadius:8, marginBottom:14, position:'relative', overflow:'hidden', background:`linear-gradient(135deg,${c1},${c2})`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {photos.length > 0 ? (
+          <>
+            <img src={photos[photoIdx]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+              onError={e => { e.target.style.display='none' }} />
+            {photos.length > 1 && (
+              <>
+                <button onClick={() => setPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
+                  style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,.45)', color:'#fff', border:'none', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+                <button onClick={() => setPhotoIdx(i => (i + 1) % photos.length)}
+                  style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,.45)', color:'#fff', border:'none', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+                <div style={{ position:'absolute', bottom:8, left:0, right:0, display:'flex', justifyContent:'center', gap:5 }}>
+                  {photos.map((_, i) => (
+                    <button key={i} onClick={() => setPhotoIdx(i)}
+                      style={{ width: i===photoIdx?18:7, height:7, borderRadius:4, background: i===photoIdx?'#fff':'rgba(255,255,255,.55)', border:'none', cursor:'pointer', padding:0, transition:'width .2s' }} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <span style={{ fontSize:72 }}>{icon}</span>
+        )}
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-        <div>
-          <div style={{ fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1 }}>{pt?'Preço':'Price'}</div>
-          <div style={{ fontSize:18, fontWeight:700, color:'var(--blue)' }}>{fmtPrice(prop.price)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize:10, color:'var(--text3)', textTransform:'uppercase', letterSpacing:1 }}>Status</div>
-          <div style={{ marginTop:2 }}><Badge status={prop.status?.toUpperCase()} lang={lang} /></div>
-        </div>
-      </div>
+
+      {/* ── Price ── */}
+      <div style={{ fontSize:22, fontWeight:800, color:'var(--blue)', marginBottom:14 }}>{fmtPrice(prop.price)}</div>
+
+      {/* ── Details table ── */}
       <table className="data-table"><tbody>
-        <tr><td style={{ color:'var(--text3)' }}>{pt?'Tipo':'Type'}</td><td>{prop.type}</td></tr>
-        <tr><td style={{ color:'var(--text3)' }}>{pt?'Cidade':'City'}</td><td>{prop.city} — {prop.hood}</td></tr>
+        <tr><td style={{ color:'var(--text3)', width:120 }}>Tipo</td><td>{prop.type}</td></tr>
+        <tr><td style={{ color:'var(--text3)' }}>Localização</td>
+          <td>
+            {prop.logradouro ? `${prop.logradouro}${prop.numero ? ', '+prop.numero : ''}${prop.complemento ? ' '+prop.complemento : ''} — ` : ''}
+            {prop.hood}, {prop.city}{prop.state ? ' / '+prop.state : ''}
+          </td>
+        </tr>
         <tr><td style={{ color:'var(--text3)' }}>Área</td><td>{prop.size} m²</td></tr>
-        <tr><td style={{ color:'var(--text3)' }}>{pt?'Quartos':'Bedrooms'}</td><td>{prop.beds}</td></tr>
-        {prop.chain && <tr><td style={{ color:'var(--text3)' }}>Cadeia</td><td><span style={{ fontWeight:600, color:'var(--blue)' }}>{prop.chain}</span></td></tr>}
-        {prop.approval_status && <tr><td style={{ color:'var(--text3)' }}>Aprovação</td><td><Badge status={prop.approval_status} lang={lang} /></td></tr>}
+        {prop.beds > 0 && <tr><td style={{ color:'var(--text3)' }}>Quartos</td><td>{prop.beds}</td></tr>}
+        {prop.baths > 0 && <tr><td style={{ color:'var(--text3)' }}>Banheiros</td><td>{prop.baths}</td></tr>}
+        {prop.park > 0 && <tr><td style={{ color:'var(--text3)' }}>Vagas</td><td>{prop.park}</td></tr>}
+        {prop.chain && role !== 'USUARIO' && <tr><td style={{ color:'var(--text3)' }}>Cadeia</td><td><span style={{ fontWeight:600, color:'var(--blue)' }}>{prop.chain}</span></td></tr>}
+        {creator && <tr><td style={{ color:'var(--text3)' }}>Anunciante</td><td style={{ fontSize:12 }}>{creator.user} — {prop.reg}</td></tr>}
       </tbody></table>
     </Modal>
   )

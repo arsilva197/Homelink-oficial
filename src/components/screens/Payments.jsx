@@ -77,7 +77,7 @@ export default function ScreenPayments({ ctx }) {
 
   // ── Event 2 — Comissão Integral 6% (Vendedor → Agente) ────
   const allCommissions = myOpps.flatMap(o =>
-    (o.commissions || []).map(c => ({ ...c, opp_id: o.id, opp }))
+    (o.commissions || []).map(c => ({ ...c, opp_id: o.id }))
   )
   const cmPending = allCommissions.filter(c => c.status === 'PENDING').reduce((s,c)=>s+c.amount, 0)
   const cmPaid    = allCommissions.filter(c => c.status === 'PAID').reduce((s,c)=>s+c.amount, 0)
