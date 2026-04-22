@@ -3,15 +3,170 @@ import { useState } from 'react'
 import { Badge, PipelineSteps, MetricRow, Modal } from '../ui'
 import { fmtPrice, fmtN, fmtPct } from '../../lib/utils'
 
-// Due Diligence document list
-const DD_DOCS = [
-  { key:'matricula',    label:'Matrícula do Imóvel',            desc:'Certidão de matrícula atualizada (máx. 30 dias)' },
-  { key:'certidoes',   label:'Certidões Negativas',             desc:'Certidões de ônus, ações e tributos' },
-  { key:'iptu',        label:'IPTU',                            desc:'Comprovante de IPTU quitado' },
-  { key:'docs',        label:'Documentos Pessoais do Vendedor', desc:'RG, CPF e comprovante de residência' },
-  { key:'contrato',    label:'Contrato de Compra e Venda',      desc:'Minuta ou contrato assinado pelas partes' },
-  { key:'procuracao',  label:'Procuração (se aplicável)',        desc:'Procuração pública, caso o vendedor atue por representante' },
+// ── Due Diligence — grupos de documentos ─────────────────────
+const DD_GROUPS = [
+  {
+    id:    'imovel',
+    label: 'Documentos do Imóvel',
+    icon:  '🏠',
+    scope: 'seller',   // displayed once per seller (commission)
+    docs: [
+      { key:'matricula',  label:'Matrícula do Imóvel',    desc:'Certidão de matrícula atualizada (máx. 30 dias)' },
+      { key:'certidoes',  label:'Certidões Negativas',    desc:'Certidões de ônus, ações reais e tributárias' },
+      { key:'iptu',       label:'IPTU',                   desc:'Comprovante de IPTU quitado do exercício' },
+    ],
+  },
+  {
+    id:    'vendedor',
+    label: 'Documentos do Vendedor',
+    icon:  '🧾',
+    scope: 'seller',
+    docs: [
+      { key:'id_vendedor',    label:'Identidade (RG/CPF)',         desc:'Documento de identidade e CPF do vendedor' },
+      { key:'res_vendedor',   label:'Comprovante de Residência',   desc:'Conta de luz, água ou telefone (máx. 90 dias)' },
+      { key:'estado_civil',   label:'Estado Civil / Certidão',     desc:'Certidão de casamento, divórcio ou óbito, se aplicável' },
+      { key:'procuracao',     label:'Procuração (se aplicável)',   desc:'Procuração pública, se representado por terceiro' },
+    ],
+  },
+  {
+    id:    'comprador',
+    label: 'Documentos do Comprador',
+    icon:  '👤',
+    scope: 'buyer',    // displayed once per buyer participant
+    docs: [
+      { key:'id_comprador',   label:'Identidade (RG/CPF)',         desc:'Documento de identidade e CPF do comprador' },
+      { key:'renda',          label:'Comprovante de Renda',        desc:'Holerites, declaração IR ou extratos bancários (últimos 3 meses)' },
+      { key:'res_comprador',  label:'Comprovante de Residência',   desc:'Conta de luz, água ou telefone (máx. 90 dias)' },
+    ],
+  },
+  {
+    id:    'contrato',
+    label: 'Contrato',
+    icon:  '📝',
+    scope: 'global',   // displayed once per opp
+    docs: [
+      { key:'contrato',  label:'Contrato de Compra e Venda', desc:'Minuta ou contrato assinado pelas partes' },
+      { key:'laudo',     label:'Laudo de Avaliação',          desc:'Laudo do imóvel emitido por perito habilitado (opcional)' },
+    ],
+  },
 ]
+
+// ── Pipeline permission helper ───────────────────────────────
+// Admin: all stages including CLOSED
+// Broker / Agency: ASSIGNED onwards, cannot mark CLOSED (last index)
+function canMovePipeline(role, opp, PL) {
+  if (role === 'ADMIN') return true
+  if (role === 'BROKER' || role === 'AGENCY') {
+    const assignedIdx = PL.indexOf('ASSIGNED')
+    const closedIdx   = PL.indexOf('CLOSED')
+    return opp.si >= assignedIdx && opp.si < closedIdx - 1
+  }
+  return false
+}
+
+function canAdvance(role, opp, PL) {
+  if (!canMovePipeline(role, opp, PL)) return false
+  const closedIdx = PL.indexOf('CLOSED')
+  if (role !== 'ADMIN' && opp.si >= closedIdx - 1) return false  // broker/agency stop before CLOSED
+  return opp.si < PL.length - 1
+}
+
+function canRetreat(role, opp, PL) {
+  if (!canMovePipeline(role, opp, PL)) return false
+  const assignedIdx = PL.indexOf('ASSIGNED')
+  if (role !== 'ADMIN' && opp.si <= assignedIdx) return false  // broker/agency can't go before ASSIGNED
+  return opp.si > 0
+}
+
+// ── DD row component ─────────────────────────────────────────
+function DdRow({ doc, checked, uploads, canEdit, onToggle, onUpload }) {
+  return (
+    <tr style={{ background: checked ? 'rgba(56,161,105,.05)' : 'transparent' }}>
+      <td style={{ padding:'9px 10px', fontSize:12.5, fontWeight:600, border:'1px solid var(--border)', verticalAlign:'middle' }}>
+        {doc.label}
+      </td>
+      <td style={{ padding:'9px 10px', fontSize:11.5, color:'var(--text3)', border:'1px solid var(--border)', verticalAlign:'middle' }}>
+        {doc.desc}
+      </td>
+      <td style={{ padding:'9px 10px', textAlign:'center', border:'1px solid var(--border)', verticalAlign:'middle', width:72 }}>
+        {canEdit ? (
+          <label style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+            <input type="checkbox" checked={checked} onChange={e => onToggle(e.target.checked)} style={{ cursor:'pointer' }} />
+            <span style={{ fontSize:14 }}>{checked ? '✅' : '⬜'}</span>
+          </label>
+        ) : (
+          <span style={{ fontSize:16 }}>{checked ? '✅' : '❌'}</span>
+        )}
+      </td>
+      <td style={{ padding:'9px 10px', textAlign:'center', border:'1px solid var(--border)', verticalAlign:'middle', width:130 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'center' }}>
+          {uploads.map((f, i) => (
+            <div key={i} style={{ fontSize:10, color:'var(--blue)', maxWidth:110, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              📎 {f}
+            </div>
+          ))}
+          {canEdit && (
+            <>
+              <input type="file" multiple style={{ display:'none' }} id={`up-${doc.key}`}
+                onChange={e => onUpload(e.target.files)} />
+              <label htmlFor={`up-${doc.key}`}
+                style={{ fontSize:10.5, padding:'3px 8px', background:'var(--primary)', color:'#fff', borderRadius:4, cursor:'pointer', fontWeight:600 }}>
+                ⬆ Enviar
+              </label>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// ── Grouped DD table ─────────────────────────────────────────
+function DdGroupTable({ group, entityKey, ddLive, ddBase, canEdit, onFlag, onUpload }) {
+  const total = group.docs.length
+  const done  = group.docs.filter(d => ddLive[d.key] ?? ddBase?.[d.key] ?? false).length
+  const pct   = Math.round(done / total * 100)
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+        <div style={{ fontSize:12, fontWeight:700, color:'var(--text2)' }}>
+          {group.icon} {group.label}
+        </div>
+        <div style={{ fontSize:11, color: done === total ? 'var(--green)' : 'var(--text3)' }}>
+          {done}/{total} {done === total ? '✓' : ''}
+        </div>
+      </div>
+      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+        <thead>
+          <tr style={{ background:'var(--bg2)' }}>
+            <th style={{ padding:'7px 10px', fontSize:10.5, textAlign:'left', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)' }}>Documento</th>
+            <th style={{ padding:'7px 10px', fontSize:10.5, textAlign:'left', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)' }}>Descrição</th>
+            <th style={{ padding:'7px 10px', fontSize:10.5, textAlign:'center', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)', width:72 }}>OK?</th>
+            <th style={{ padding:'7px 10px', fontSize:10.5, textAlign:'center', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)', width:130 }}>Arquivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {group.docs.map(doc => (
+            <DdRow key={doc.key}
+              doc={doc}
+              checked={ddLive[doc.key] ?? ddBase?.[doc.key] ?? false}
+              uploads={(ddLive.uploads || {})[doc.key] || []}
+              canEdit={canEdit}
+              onToggle={v => onFlag(doc.key, v)}
+              onUpload={files => onUpload(doc.key, files)}
+            />
+          ))}
+        </tbody>
+      </table>
+      {/* mini progress */}
+      <div style={{ height:3, background:'var(--border)', borderRadius:2, marginTop:4, overflow:'hidden' }}>
+        <div style={{ height:'100%', width:`${pct}%`, background: done===total?'var(--green)':'var(--primary)', transition:'width 0.4s', borderRadius:2 }} />
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 
 export default function ScreenOppDetail({ ctx, opp }) {
   const { role, props, CHAINS, BROKERS_DATA, AGENCIES_DATA, PL, advanceOpp, retreatOpp,
@@ -23,7 +178,7 @@ export default function ScreenOppDetail({ ctx, opp }) {
   const [assignBroker, setAssignBroker] = useState('')
   const [editSplit, setEditSplit]     = useState(false)
   const [splitVals, setSplitVals]     = useState(null)
-  // dd state: { [oppId]: { [pid]: { ...ddFlags, uploads: { [key]: File[] } } } }
+  // ddState[oppId][entityKey] = { [docKey]: bool, uploads: { [docKey]: string[] } }
   const [ddState, setDdState]         = useState({})
 
   if (!opp) return (
@@ -32,19 +187,16 @@ export default function ScreenOppDetail({ ctx, opp }) {
     </div>
   )
 
-  const chain = CHAINS.find(c => c.id === opp.chain)
-
   // ── Commission split logic ─────────────────────────────────
-  const hasAgency  = !!opp.agency
-  const hasBroker  = !!opp.broker
-  const isIndependent = hasBroker && !hasAgency   // broker with no agency
+  const hasAgency     = !!opp.agency
+  const hasBroker     = !!opp.broker
+  const isIndependent = hasBroker && !hasAgency
 
   const agencyPct  = opp.split?.agency  || 0
   const brokerPct  = opp.split?.broker  || 0
   const platform   = Math.max(0, 6 - agencyPct - brokerPct)
   const currentSplit = splitVals || { agency: agencyPct, broker: brokerPct }
 
-  // Brokers filtered by selected agency (or all if no agency chosen yet)
   const agencyBrokers = assignAgency
     ? BROKERS_DATA.filter(b => b.agency_id === assignAgency && b.status === 'active')
     : []
@@ -54,62 +206,60 @@ export default function ScreenOppDetail({ ctx, opp }) {
     const agency = AGENCIES_DATA.find(a => a.id === assignAgency) || null
     if (!broker && !agency) return
     assignBrokerToOpp && assignBrokerToOpp(opp.id, broker, agency)
-    // Set default split
-    if (agency && !broker) {
-      updateOppSplit && updateOppSplit(opp.id, { agency:3, broker:0, platform:3 })
-    } else if (!agency && broker) {
-      updateOppSplit && updateOppSplit(opp.id, { agency:0, broker:3, platform:3 })
-    }
+    if (agency && !broker) updateOppSplit && updateOppSplit(opp.id, { agency:3, broker:0, platform:3 })
+    else if (!agency && broker) updateOppSplit && updateOppSplit(opp.id, { agency:0, broker:3, platform:3 })
     toast('Atribuição salva ✓', 'success')
-    setShowAssign(false)
-    setAssignBroker('')
-    setAssignAgency('')
+    setShowAssign(false); setAssignBroker(''); setAssignAgency('')
   }
 
   const handleSaveSplit = () => {
     const sum = Number(currentSplit.agency) + Number(currentSplit.broker)
     if (sum > 6) { toast('Total não pode exceder 6%', 'error'); return }
     updateOppSplit && updateOppSplit(opp.id, {
-      agency:   Number(currentSplit.agency),
-      broker:   Number(currentSplit.broker),
+      agency: Number(currentSplit.agency), broker: Number(currentSplit.broker),
       platform: 6 - Number(currentSplit.agency) - Number(currentSplit.broker)
     })
     toast('Comissão atualizada ✓', 'success')
-    setEditSplit(false)
-    setSplitVals(null)
+    setEditSplit(false); setSplitVals(null)
   }
 
-  // ── Due Diligence helpers ──────────────────────────────────
-  const getDd = (pid) => ddState[opp.id]?.[pid] || {}
-  const setDdFlag = (pid, key, val) => {
-    setDdState(prev => ({
+  // ── DD helpers ─────────────────────────────────────────────
+  const getDdLive = (entityKey) => ddState[opp.id]?.[entityKey] || {}
+  const setDdFlag = (entityKey, docKey, val) => setDdState(prev => ({
+    ...prev,
+    [opp.id]: { ...(prev[opp.id]||{}),
+      [entityKey]: { ...(prev[opp.id]?.[entityKey]||{}), [docKey]: val }
+    }
+  }))
+  const addUpload = (entityKey, docKey, files) => setDdState(prev => {
+    const cur = prev[opp.id]?.[entityKey]?.uploads?.[docKey] || []
+    return {
       ...prev,
-      [opp.id]: {
-        ...(prev[opp.id] || {}),
-        [pid]: { ...(prev[opp.id]?.[pid] || {}), [key]: val }
-      }
-    }))
-  }
-  const getDdUploads = (pid, key) => ddState[opp.id]?.[pid]?.uploads?.[key] || []
-  const addUpload = (pid, key, files) => {
-    setDdState(prev => {
-      const current = prev[opp.id]?.[pid]?.uploads?.[key] || []
-      return {
-        ...prev,
-        [opp.id]: {
-          ...(prev[opp.id] || {}),
-          [pid]: {
-            ...(prev[opp.id]?.[pid] || {}),
-            uploads: {
-              ...(prev[opp.id]?.[pid]?.uploads || {}),
-              [key]: [...current, ...Array.from(files).map(f => f.name)]
-            }
+      [opp.id]: { ...(prev[opp.id]||{}),
+        [entityKey]: { ...(prev[opp.id]?.[entityKey]||{}),
+          uploads: { ...(prev[opp.id]?.[entityKey]?.uploads||{}),
+            [docKey]: [...cur, ...Array.from(files).map(f=>f.name)]
           }
         }
       }
-    })
-    toast(`${files.length} arquivo(s) adicionado(s) ✓`, 'success')
-  }
+    }
+  })
+
+  // Who can edit DD: admin or the assigned broker / agency user
+  const canEditDd = isAdmin || role === 'BROKER' || role === 'AGENCY'
+
+  // Pipeline move permissions
+  const showAdvance = canAdvance(role, opp, PL)
+  const showRetreat = canRetreat(role, opp, PL)
+  const showPipelineControls = showAdvance || showRetreat
+
+  // DD threshold: show when at IN_NEGOTIATION (index 3) or beyond
+  const ddThreshold = PL.indexOf('DUE_DILIGENCE')
+  const showDd = opp.si >= PL.indexOf('IN_NEGOTIATION')
+
+  // Buyers for DD
+  const buyers  = opp.participants.filter(p => !p.role_pt.includes('Vend'))
+  const sellers = opp.participants.filter(p =>  p.role_pt.includes('Vend'))
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -138,15 +288,38 @@ export default function ScreenOppDetail({ ctx, opp }) {
       <div className="card">
         <div className="card-header">
           <div className="card-title">Pipeline de Progresso</div>
-          {isAdmin && (
-            <div style={{ display:'flex', gap:6 }}>
-              <button className="btn btn-secondary btn-sm" onClick={() => retreatOpp(opp.id)}>← Retroceder</button>
-              <button className="btn btn-primary btn-sm" onClick={() => advanceOpp(opp.id)}>Avançar →</button>
+          {showPipelineControls && (
+            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+              {role !== 'ADMIN' && (
+                <span style={{ fontSize:10.5, color:'var(--text3)', marginRight:4 }}>
+                  {role === 'BROKER' ? '👤 Corretor' : '🏛 Imobiliária'}
+                </span>
+              )}
+              {showRetreat && (
+                <button className="btn btn-secondary btn-sm" onClick={() => retreatOpp(opp.id)}>← Retroceder</button>
+              )}
+              {showAdvance && (
+                <button className="btn btn-primary btn-sm" onClick={() => advanceOpp(opp.id)}>Avançar →</button>
+              )}
+              {isAdmin && !showRetreat && !showAdvance && (
+                <span style={{ fontSize:11, color:'var(--text3)' }}>Transação encerrada</span>
+              )}
             </div>
+          )}
+          {!showPipelineControls && !isAdmin && (
+            <span style={{ fontSize:11, color:'var(--text3)' }}>
+              {opp.si < PL.indexOf('ASSIGNED') ? 'Aguardando atribuição pelo Admin' : 'Apenas Admin pode encerrar'}
+            </span>
           )}
         </div>
         <div className="card-body">
           <PipelineSteps stages={PL} currentSi={opp.si} />
+          {/* Permission hint */}
+          {(role === 'BROKER' || role === 'AGENCY') && opp.si >= PL.indexOf('ASSIGNED') && (
+            <div style={{ marginTop:10, padding:'7px 12px', background:'rgba(99,102,241,.06)', borderRadius:6, fontSize:11.5, color:'var(--text3)' }}>
+              ℹ️ Você pode avançar até <strong>Comissão Paga</strong>. Apenas o Admin pode marcar como <strong>Encerrado</strong>.
+            </div>
+          )}
         </div>
       </div>
 
@@ -192,7 +365,6 @@ export default function ScreenOppDetail({ ctx, opp }) {
                 <div style={{ fontSize:12, fontWeight:600, marginBottom:10 }}>
                   Atribuir Imobiliária ou Corretor Independente
                 </div>
-                {/* Option A: Agency + broker from agency */}
                 <div style={{ marginBottom:12, padding:12, background:'var(--bg1)', borderRadius:6, border:'1px solid var(--border)' }}>
                   <div style={{ fontSize:11.5, fontWeight:600, marginBottom:8, color:'var(--primary)' }}>🏛 Opção A — Imobiliária</div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
@@ -221,7 +393,6 @@ export default function ScreenOppDetail({ ctx, opp }) {
                     Comissão: imobiliária + plataforma (máx. 6% total)
                   </div>
                 </div>
-                {/* Option B: Independent broker */}
                 {!assignAgency && (
                   <div style={{ marginBottom:12, padding:12, background:'var(--bg1)', borderRadius:6, border:'1px solid var(--border)' }}>
                     <div style={{ fontSize:11.5, fontWeight:600, marginBottom:8, color:'var(--blue)' }}>👤 Opção B — Corretor Independente</div>
@@ -240,12 +411,8 @@ export default function ScreenOppDetail({ ctx, opp }) {
                   </div>
                 )}
                 <div style={{ display:'flex', gap:8 }}>
-                  <button className="btn btn-primary btn-sm" onClick={handleAssign}>
-                    💾 Confirmar Atribuição
-                  </button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => { setShowAssign(false); setAssignBroker(''); setAssignAgency('') }}>
-                    Cancelar
-                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={handleAssign}>💾 Confirmar Atribuição</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setShowAssign(false); setAssignBroker(''); setAssignAgency('') }}>Cancelar</button>
                 </div>
               </div>
             )}
@@ -267,11 +434,10 @@ export default function ScreenOppDetail({ ctx, opp }) {
           {!editSplit && (
             <>
               <div style={{ height:12, borderRadius:6, overflow:'hidden', display:'flex', marginBottom:14 }}>
-                {agencyPct > 0  && <div style={{ flex:agencyPct,  background:'var(--primary)', transition:'flex 0.4s' }} title={`Imobiliária ${fmtPct(agencyPct)}`} />}
-                {brokerPct > 0  && <div style={{ flex:brokerPct,  background:'var(--blue)',    transition:'flex 0.4s' }} title={`Corretor ${fmtPct(brokerPct)}`} />}
-                <div style={{ flex: Math.max(platform,0.01), background:'var(--green)', transition:'flex 0.4s' }} title={`Plataforma ${fmtPct(platform)}`} />
+                {agencyPct > 0  && <div style={{ flex:agencyPct,  background:'var(--primary)', transition:'flex 0.4s' }} />}
+                {brokerPct > 0  && <div style={{ flex:brokerPct,  background:'var(--blue)',    transition:'flex 0.4s' }} />}
+                <div style={{ flex:Math.max(platform,0.01), background:'var(--green)', transition:'flex 0.4s' }} />
               </div>
-
               <div style={{ display:'grid', gridTemplateColumns:`repeat(${(hasAgency?1:0)+(isIndependent?1:0)+1},1fr)`, gap:12 }}>
                 {hasAgency && (
                   <div style={{ textAlign:'center', padding:'14px 12px', background:'linear-gradient(135deg,rgba(99,102,241,.08),rgba(99,102,241,.04))', borderRadius:10, border:'1px solid rgba(99,102,241,.2)' }}>
@@ -296,7 +462,6 @@ export default function ScreenOppDetail({ ctx, opp }) {
                   <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{fmtPrice(opp.gmv * platform / 100)}</div>
                 </div>
               </div>
-
               {!hasAgency && !hasBroker && (
                 <div style={{ marginTop:10, padding:'8px 12px', background:'rgba(237,137,54,.08)', borderRadius:6, fontSize:12, color:'var(--amber)' }}>
                   ⚠ Nenhum corretor ou imobiliária atribuído. 100% da comissão (6%) vai para a plataforma.
@@ -308,15 +473,9 @@ export default function ScreenOppDetail({ ctx, opp }) {
               </div>
             </>
           )}
-
           {isAdmin && editSplit && splitVals && (
             <div>
-              <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>
-                {hasAgency && !isIndependent && 'Distribua entre imobiliária e plataforma (máx. 6% total).'}
-                {isIndependent && 'Distribua entre corretor independente e plataforma (máx. 6% total).'}
-                {!hasAgency && !hasBroker && 'Atribua um corretor ou imobiliária antes de editar o split.'}
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
                 <div className="form-group" style={{ marginBottom:0 }}>
                   <label className="form-label">{hasAgency ? 'Imobiliária (%)' : 'Corretor (%)'}</label>
                   <input className="form-input" type="number" step="0.5" min="0" max="6"
@@ -328,12 +487,12 @@ export default function ScreenOppDetail({ ctx, opp }) {
                 </div>
                 <div className="form-group" style={{ marginBottom:0 }}>
                   <label className="form-label">Plataforma (%)</label>
-                  <input className="form-input" type="number" readOnly
+                  <input className="form-input" readOnly type="number"
                     value={Math.max(0, 6 - Number(currentSplit.agency) - Number(currentSplit.broker))}
                     style={{ background:'var(--bg2)', cursor:'not-allowed', color:'var(--text3)' }} />
                 </div>
               </div>
-              <div style={{ fontSize:11.5, color: (Number(currentSplit.agency)+Number(currentSplit.broker)) > 6 ? 'var(--red)' : 'var(--text3)', marginBottom:10 }}>
+              <div style={{ fontSize:11.5, color:(Number(currentSplit.agency)+Number(currentSplit.broker))>6?'var(--red)':'var(--text3)', marginBottom:10 }}>
                 Soma máxima: 6%. Plataforma recebe o restante.
               </div>
               <div style={{ display:'flex', gap:8 }}>
@@ -349,9 +508,6 @@ export default function ScreenOppDetail({ ctx, opp }) {
       <div className="card">
         <div className="card-header">
           <div className="card-title">Participantes</div>
-          <span className="badge b-approved" style={{ fontSize:10 }}>
-            Clique no imóvel para detalhes
-          </span>
         </div>
         <div className="card-body">
           <table className="data-table" style={{ marginBottom:14 }}>
@@ -370,7 +526,7 @@ export default function ScreenOppDetail({ ctx, opp }) {
                       {prop && <div style={{ fontSize:11, color:'var(--text3)' }}>{prop.name}</div>}
                     </td>
                     <td>
-                      <span style={{ fontSize:11.5, background: isSeller?'var(--primary)':'var(--border)', color: isSeller?'var(--bg1)':'var(--text2)', padding:'2px 7px', borderRadius:4 }}>
+                      <span style={{ fontSize:11.5, background:isSeller?'var(--primary)':'var(--border)', color:isSeller?'var(--bg1)':'var(--text2)', padding:'2px 7px', borderRadius:4 }}>
                         {pp.role_pt}
                       </span>
                     </td>
@@ -389,19 +545,13 @@ export default function ScreenOppDetail({ ctx, opp }) {
           {opp.commissions.map(cm => {
             const prop = props.find(x => x.id === cm.pid)
             const part = opp.participants.find(p => p.pid === cm.pid)
-            const pName = prop ? prop.name : 'Imóvel'
-            // merge stored dd with live ddState
-            const ddBase = cm.dd || {}
-            const ddLive = getDd(cm.pid)
             return (
               <div key={cm.ref} style={{ padding:14, border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', marginBottom:10, background:'var(--bg2)' }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:14 }}>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:11, textTransform:'uppercase', letterSpacing:1, color:'var(--text3)', marginBottom:3 }}>
-                      {part?.role_pt || ''}
-                    </div>
-                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text1)', marginBottom:2 }}>{part?.name || '—'}</div>
-                    <div style={{ fontSize:12, color:'var(--text3)' }}>{pName} · Ref: {cm.ref}</div>
+                    <div style={{ fontSize:11, textTransform:'uppercase', letterSpacing:1, color:'var(--text3)', marginBottom:3 }}>{part?.role_pt||''}</div>
+                    <div style={{ fontSize:14, fontWeight:600, color:'var(--text1)', marginBottom:2 }}>{part?.name||'—'}</div>
+                    <div style={{ fontSize:12, color:'var(--text3)' }}>{prop?.name||cm.pid} · Ref: {cm.ref}</div>
                   </div>
                   <div style={{ textAlign:'right' }}>
                     <div style={{ fontSize:18, fontWeight:700, color:'var(--primary)' }}>R$ {fmtN(cm.amount/1e3)}k</div>
@@ -414,9 +564,7 @@ export default function ScreenOppDetail({ ctx, opp }) {
                         <option value="PAID">Paga</option>
                         <option value="OVERDUE">Vencida</option>
                       </select>
-                    ) : (
-                      <Badge status={cm.status} />
-                    )}
+                    ) : <Badge status={cm.status} />}
                   </div>
                 </div>
               </div>
@@ -425,107 +573,129 @@ export default function ScreenOppDetail({ ctx, opp }) {
         </div>
       </div>
 
-      {/* Due Diligence (shown when at DUE_DILIGENCE step or later) */}
-      {opp.si >= PL.indexOf('DUE_DILIGENCE') && (
+      {/* Due Diligence */}
+      {showDd && (
         <div className="card">
           <div className="card-header">
             <div className="card-title">📋 Due Diligence</div>
-            <span className="badge b-negotiation" style={{ fontSize:10 }}>
-              {opp.commissions.length > 0
-                ? `${opp.commissions.length} vendedor(es)`
-                : 'Sem vendedores'}
-            </span>
+            {opp.si < ddThreshold && (
+              <span style={{ fontSize:10.5, color:'var(--amber)', fontWeight:600 }}>
+                ⚠ Disponível a partir de "Due Diligence" no pipeline
+              </span>
+            )}
           </div>
           <div className="card-body">
-            <p style={{ fontSize:12.5, color:'var(--text3)', marginBottom:14 }}>
-              O corretor atribuído deve verificar e marcar cada documento abaixo. Documentos podem ser enviados individualmente por item.
-            </p>
-            {opp.commissions.map(cm => {
-              const part = opp.participants.find(p => p.pid === cm.pid)
-              return (
-                <div key={`dd-${cm.ref}`} style={{ marginBottom:20 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:'var(--text1)', marginBottom:10, paddingBottom:6, borderBottom:'2px solid var(--primary)' }}>
-                    🏠 {part?.name || '—'} — {props.find(x=>x.id===cm.pid)?.name || cm.pid}
-                  </div>
-                  <table style={{ width:'100%', borderCollapse:'collapse' }}>
-                    <thead>
-                      <tr style={{ background:'var(--bg1)' }}>
-                        <th style={{ padding:'8px 10px', fontSize:11, textAlign:'left', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)' }}>Documento</th>
-                        <th style={{ padding:'8px 10px', fontSize:11, textAlign:'left', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)' }}>Descrição</th>
-                        <th style={{ padding:'8px 10px', fontSize:11, textAlign:'center', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)', width:80 }}>Status</th>
-                        <th style={{ padding:'8px 10px', fontSize:11, textAlign:'center', color:'var(--text3)', fontWeight:600, border:'1px solid var(--border)', width:120 }}>Arquivo(s)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {DD_DOCS.map(doc => {
-                        const checked = ddLive[doc.key] ?? ddBase[doc.key] ?? false
-                        const uploads = getDdUploads(cm.pid, doc.key)
-                        return (
-                          <tr key={doc.key} style={{ background: checked ? 'rgba(56,161,105,.05)' : 'transparent' }}>
-                            <td style={{ padding:'10px', fontSize:12.5, fontWeight:600, border:'1px solid var(--border)', verticalAlign:'middle' }}>
-                              {doc.label}
-                            </td>
-                            <td style={{ padding:'10px', fontSize:11.5, color:'var(--text3)', border:'1px solid var(--border)', verticalAlign:'middle' }}>
-                              {doc.desc}
-                            </td>
-                            <td style={{ padding:'10px', textAlign:'center', border:'1px solid var(--border)', verticalAlign:'middle' }}>
-                              {isAdmin || role === 'BROKER' ? (
-                                <label style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-                                  <input type="checkbox" checked={checked}
-                                    onChange={e => setDdFlag(cm.pid, doc.key, e.target.checked)} />
-                                  <span style={{ fontSize:14 }}>{checked ? '✅' : '❌'}</span>
-                                </label>
-                              ) : (
-                                <span style={{ fontSize:16 }}>{checked ? '✅' : '❌'}</span>
-                              )}
-                            </td>
-                            <td style={{ padding:'10px', textAlign:'center', border:'1px solid var(--border)', verticalAlign:'middle' }}>
-                              <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'center' }}>
-                                {uploads.length > 0 && (
-                                  <div style={{ fontSize:10, color:'var(--text3)' }}>
-                                    {uploads.map((f,i) => (
-                                      <div key={i} style={{ color:'var(--blue)' }}>📎 {f}</div>
-                                    ))}
-                                  </div>
-                                )}
-                                {(isAdmin || role === 'BROKER') && (
-                                  <>
-                                    <input type="file" multiple style={{ display:'none' }}
-                                      id={`upload-${cm.pid}-${doc.key}`}
-                                      onChange={e => addUpload(cm.pid, doc.key, e.target.files)} />
-                                    <label htmlFor={`upload-${cm.pid}-${doc.key}`}
-                                      style={{ fontSize:10.5, padding:'3px 8px', background:'var(--primary)', color:'#fff', borderRadius:4, cursor:'pointer', fontWeight:600 }}>
-                                      ⬆ Enviar
-                                    </label>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                  {/* Progress bar */}
-                  {(() => {
-                    const total = DD_DOCS.length
-                    const done = DD_DOCS.filter(d => ddLive[d.key] ?? ddBase[d.key] ?? false).length
-                    const pct = Math.round(done/total*100)
-                    return (
-                      <div style={{ marginTop:10 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text3)', marginBottom:4 }}>
-                          <span>Progresso: {done}/{total} documentos verificados</span>
-                          <span style={{ fontWeight:700, color: done===total?'var(--green)':'var(--text2)' }}>{pct}%</span>
-                        </div>
-                        <div style={{ height:6, background:'var(--border)', borderRadius:3, overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:`${pct}%`, background: done===total?'var(--green)':'var(--primary)', transition:'width 0.4s', borderRadius:3 }} />
-                        </div>
+            {opp.si < ddThreshold && (
+              <p style={{ fontSize:12.5, color:'var(--text3)', margin:0 }}>
+                Avance o pipeline para a etapa <strong>Due Diligence</strong> para habilitar a verificação de documentos.
+              </p>
+            )}
+
+            {opp.si >= ddThreshold && (
+              <>
+                <p style={{ fontSize:12.5, color:'var(--text3)', marginBottom:16 }}>
+                  O corretor atribuído verifica e coleta os documentos abaixo. Use os checkboxes para confirmar cada item e o botão <strong>Enviar</strong> para anexar os arquivos.
+                </p>
+
+                {/* ── Por Vendedor: Imóvel + Vendedor ── */}
+                {opp.commissions.map(cm => {
+                  const part = opp.participants.find(p => p.pid === cm.pid)
+                  const entityKey = `seller_${cm.pid}`
+                  const ddLive = getDdLive(entityKey)
+                  return (
+                    <div key={entityKey} style={{ marginBottom:20, paddingBottom:16, borderBottom:'2px solid var(--border)' }}>
+                      <div style={{ fontSize:13.5, fontWeight:700, color:'var(--text1)', marginBottom:12 }}>
+                        🏠 {part?.name || '—'} — {props.find(x=>x.id===cm.pid)?.name || cm.pid}
                       </div>
+                      {DD_GROUPS.filter(g => g.scope === 'seller').map(group => (
+                        <DdGroupTable key={group.id} group={group} entityKey={entityKey}
+                          ddLive={ddLive} ddBase={cm.dd}
+                          canEdit={canEditDd}
+                          onFlag={(docKey, val) => setDdFlag(entityKey, docKey, val)}
+                          onUpload={(docKey, files) => addUpload(entityKey, docKey, files)}
+                        />
+                      ))}
+                    </div>
+                  )
+                })}
+
+                {/* ── Por Comprador ── */}
+                {buyers.map(buyer => {
+                  const entityKey = `buyer_${buyer.pid || buyer.name}`
+                  const ddLive = getDdLive(entityKey)
+                  return (
+                    <div key={entityKey} style={{ marginBottom:20, paddingBottom:16, borderBottom:'2px solid var(--border)' }}>
+                      <div style={{ fontSize:13.5, fontWeight:700, color:'var(--text1)', marginBottom:12 }}>
+                        👤 {buyer.name} — Comprador
+                      </div>
+                      {DD_GROUPS.filter(g => g.scope === 'buyer').map(group => (
+                        <DdGroupTable key={group.id} group={group} entityKey={entityKey}
+                          ddLive={ddLive} ddBase={{}}
+                          canEdit={canEditDd}
+                          onFlag={(docKey, val) => setDdFlag(entityKey, docKey, val)}
+                          onUpload={(docKey, files) => addUpload(entityKey, docKey, files)}
+                        />
+                      ))}
+                    </div>
+                  )
+                })}
+
+                {/* ── Contrato (global) ── */}
+                {DD_GROUPS.filter(g => g.scope === 'global').map(group => {
+                  const entityKey = `global_${opp.id}`
+                  const ddLive = getDdLive(entityKey)
+                  return (
+                    <DdGroupTable key={group.id} group={group} entityKey={entityKey}
+                      ddLive={ddLive} ddBase={{}}
+                      canEdit={canEditDd}
+                      onFlag={(docKey, val) => setDdFlag(entityKey, docKey, val)}
+                      onUpload={(docKey, files) => addUpload(entityKey, docKey, files)}
+                    />
+                  )
+                })}
+
+                {/* Overall progress */}
+                {(() => {
+                  const allDocs = DD_GROUPS.flatMap(g => g.docs)
+                  const entities = [
+                    ...opp.commissions.map(cm => ({ key:`seller_${cm.pid}`, base:cm.dd })),
+                    ...buyers.map(b => ({ key:`buyer_${b.pid||b.name}`, base:{} })),
+                    { key:`global_${opp.id}`, base:{} },
+                  ]
+                  let total=0, done=0
+                  entities.forEach(({ key, base }) => {
+                    const live = getDdLive(key)
+                    const entityGroups = DD_GROUPS.filter(g =>
+                      key.startsWith('seller') ? g.scope === 'seller' :
+                      key.startsWith('buyer')  ? g.scope === 'buyer'  : g.scope === 'global'
                     )
-                  })()}
-                </div>
-              )
-            })}
+                    entityGroups.forEach(g => {
+                      g.docs.forEach(d => {
+                        total++
+                        if (live[d.key] ?? base?.[d.key] ?? false) done++
+                      })
+                    })
+                  })
+                  const pct = total ? Math.round(done/total*100) : 0
+                  return (
+                    <div style={{ marginTop:8, padding:'12px 16px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5, marginBottom:8 }}>
+                        <span style={{ fontWeight:600 }}>Progresso Geral da Due Diligence</span>
+                        <span style={{ fontWeight:700, color: done===total?'var(--green)':'var(--primary)' }}>{done}/{total} ({pct}%)</span>
+                      </div>
+                      <div style={{ height:8, background:'var(--border)', borderRadius:4, overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${pct}%`, background: done===total?'var(--green)':'var(--primary)', transition:'width 0.4s', borderRadius:4 }} />
+                      </div>
+                      {done === total && (
+                        <div style={{ marginTop:8, fontSize:12, color:'var(--green)', fontWeight:600 }}>
+                          ✅ Todos os documentos verificados! Pronto para avançar.
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
           </div>
         </div>
       )}

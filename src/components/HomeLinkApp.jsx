@@ -33,7 +33,7 @@ import ScreenAdminUsers from './screens/AdminUsers'
 import ScreenProperties from './screens/Properties'
 import ScreenAdminApprovals from './screens/AdminApprovals'
 
-const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','CONCRETIZADA','DUE_DILIGENCE','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
+const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','DUE_DILIGENCE','CONCRETIZADA','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
 
 export default function HomeLinkApp() {
   const [role, setRole] = useState('ADMIN')
