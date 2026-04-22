@@ -143,33 +143,59 @@ export const OPPS = [
    broker:'João Corretor',broker_id:'BRK-01',agency:'Imobiliária Paulista',agency_id:'AGN-01',
    split:{broker:0,agency:1.5,platform:4.5},match_date:'2024-10-15 09:32',
    participants:[
-     {name:'Carlos Mendes',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-001',cls:'pav-b'},
-     {name:'Família Souza',role_pt:'Comp./Vendedor',role_en:'Buy./Seller',pid:'PROP-002',cls:'pav-b'},
-     {name:'Beatriz Lima',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-003',cls:'pav-a'},
+     {name:'Carlos Mendes',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-001',cls:'pav-b',
+      phone:'5511991110001',email:'carlos.mendes@email.com',cpf:'123.456.789-00'},
+     {name:'Família Souza',role_pt:'Comp./Vendedor',role_en:'Buy./Seller',pid:'PROP-002',cls:'pav-b',
+      phone:'5511992220002',email:'souza.familia@email.com',cpf:'234.567.890-11'},
+     {name:'Beatriz Lima',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-003',cls:'pav-a',
+      phone:'5511993330003',email:'beatriz.lima@email.com',cpf:'345.678.901-22'},
    ],
    commissions:[
      {seller:'Carlos Mendes',pid:'PROP-001',ref:'COM-001-A',amount:51000,status:'OVERDUE',dd:{matricula:true,certidoes:true,iptu:true,docs:false}},
      {seller:'Família Souza',pid:'PROP-002',ref:'COM-001-B',amount:72000,status:'PENDING',dd:{matricula:true,certidoes:false,iptu:true,docs:true}},
+   ],
+   property_payments:[
+     {ref:'PAY-001-A',pid:'PROP-001',property_name:'Apto Jardins',seller:'Carlos Mendes',buyer:'Família Souza',amount:850000,status:'PENDING',due_date:'2024-12-15'},
+     {ref:'PAY-001-B',pid:'PROP-002',property_name:'Casa Perdizes',seller:'Família Souza',buyer:'Beatriz Lima',amount:1200000,status:'PENDING',due_date:'2024-12-15'},
+   ],
+   platform_repasse:[
+     {ref:'PLA-001',payer:'Imobiliária Paulista',payer_id:'AGN-01',amount:120150,status:'PENDING',due_date:'2024-12-01',deadline_days:5},
    ]},
   {id:'OPP-002',chain:'CHN-B',status:'IN_NEGOTIATION',si:3,cps:0.79,gmv:1660000,commission:99600,
    broker:'Maria Corretora',broker_id:'BRK-01',agency:'Imobiliária Paulista',agency_id:'AGN-01',
    split:{broker:0,agency:2,platform:4},match_date:'2024-10-28 14:15',
    participants:[
-     {name:'Pedro Alves',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-004',cls:'pav-b'},
-     {name:'Fernanda Costa',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-006',cls:'pav-a'},
+     {name:'Pedro Alves',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-004',cls:'pav-b',
+      phone:'5521994440004',email:'pedro.alves@email.com',cpf:'456.789.012-33'},
+     {name:'Fernanda Costa',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-006',cls:'pav-a',
+      phone:'5521995550005',email:'fernanda.costa@email.com',cpf:'567.890.123-44'},
    ],
    commissions:[
      {seller:'Pedro Alves',pid:'PROP-004',ref:'COM-002-A',amount:99000,status:'PENDING',dd:{matricula:true,certidoes:true,iptu:false,docs:false}},
+   ],
+   property_payments:[
+     {ref:'PAY-002-A',pid:'PROP-004',property_name:'Apto Ipanema',seller:'Pedro Alves',buyer:'Fernanda Costa',amount:1650000,status:'PENDING',due_date:'2025-01-10'},
+   ],
+   platform_repasse:[
+     {ref:'PLA-002',payer:'Imobiliária Paulista',payer_id:'AGN-01',amount:66400,status:'PENDING',due_date:'2025-01-17',deadline_days:5},
    ]},
   {id:'OPP-003',chain:'CHN-C',status:'APPROVED',si:1,cps:0.82,gmv:1410000,commission:84600,
    broker:null,broker_id:null,agency:null,agency_id:null,
    split:{broker:0,agency:0,platform:6},match_date:'2024-11-05 11:00',
    participants:[
-     {name:'Roberto Silva',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-007',cls:'pav-b'},
-     {name:'Ana Ferreira',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-009',cls:'pav-a'},
+     {name:'Roberto Silva',role_pt:'Vendedor',role_en:'Seller',pid:'PROP-007',cls:'pav-b',
+      phone:'5531996660006',email:'roberto.silva@email.com',cpf:'678.901.234-55'},
+     {name:'Ana Ferreira',role_pt:'Comprador',role_en:'Buyer',pid:'PROP-009',cls:'pav-a',
+      phone:'5531997770007',email:'ana.ferreira@email.com',cpf:'789.012.345-66'},
    ],
    commissions:[
      {seller:'Roberto Silva',pid:'PROP-007',ref:'COM-003-A',amount:53400,status:'PENDING',dd:{matricula:false,certidoes:false,iptu:false,docs:false}},
+   ],
+   property_payments:[
+     {ref:'PAY-003-A',pid:'PROP-007',property_name:'Casa Lourdes',seller:'Roberto Silva',buyer:'Ana Ferreira',amount:890000,status:'PENDING',due_date:'2025-02-01'},
+   ],
+   platform_repasse:[
+     {ref:'PLA-003',payer:'HomeLink (direto)',payer_id:null,amount:84600,status:'PENDING',due_date:'2025-02-08',deadline_days:5},
    ]},
 ];
 

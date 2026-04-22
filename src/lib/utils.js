@@ -118,12 +118,12 @@ export function getNav(role) {
   ];
   if (role === 'BROKER') return [
     {section:'nav_main', items:[{id:'marketplace',icon:'🏠'},{id:'dashboard',icon:'⬡'}]},
-    {section:'nav_ops', items:[{id:'my-properties',icon:'🏘'},{id:'interests',icon:'🔍'},{id:'opportunities',icon:'📋'},{id:'transactions',icon:'💼'},{id:'payments',icon:'💳'}]},
+    {section:'nav_ops', items:[{id:'my-properties',icon:'🏘'},{id:'interests',icon:'🔍'},{id:'opportunities',icon:'📋'},{id:'payments',icon:'💳'}]},
     {section:'nav_insights', items:[{id:'broker-analytics',icon:'📊'}]},
   ];
   if (role === 'AGENCY') return [
     {section:'nav_main', items:[{id:'marketplace',icon:'🏠'},{id:'dashboard',icon:'⬡'}]},
-    {section:'nav_ops', items:[{id:'my-properties',icon:'🏘'},{id:'interests',icon:'🔍'},{id:'my-brokers',icon:'👥'},{id:'transactions',icon:'💼'},{id:'payments',icon:'💳'}]},
+    {section:'nav_ops', items:[{id:'my-properties',icon:'🏘'},{id:'interests',icon:'🔍'},{id:'opportunities',icon:'📋'},{id:'my-brokers',icon:'👥'},{id:'payments',icon:'💳'}]},
     {section:'nav_insights', items:[{id:'agency-analytics',icon:'📊'}]},
   ];
   // USUARIO — no transactions, no chains
@@ -133,14 +133,20 @@ export function getNav(role) {
 }
 
 export function navBadge(id, role, OPPS, PROPS) {
-  if (id === 'transactions') {
-    let active = [];
-    if (role === 'BROKER') active = OPPS.filter(o => o.broker_id === 'BRK-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status));
-    else if (role === 'AGENCY') active = OPPS.filter(o => o.agency_id === 'AGN-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status));
-    return active.length;
+  if (id === 'opportunities') {
+    if (role === 'ADMIN') return OPPS.filter(o => o.status === 'PENDING_REVIEW').length;
+    if (role === 'BROKER') return OPPS.filter(o => o.broker_id === 'BRK-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status)).length;
+    if (role === 'AGENCY') return OPPS.filter(o => o.agency_id === 'AGN-01' && !['CLOSED','COMMISSION_PAID'].includes(o.status)).length;
   }
-  if (id === 'opportunities' && role === 'ADMIN') {
-    return OPPS.filter(o => o.status === 'PENDING_REVIEW').length;
+  if (id === 'payments') {
+    // badge = overdue payments
+    const myOpps = role === 'BROKER' ? OPPS.filter(o => o.broker_id === 'BRK-01')
+      : role === 'AGENCY' ? OPPS.filter(o => o.agency_id === 'AGN-01')
+      : role === 'ADMIN' ? OPPS : [];
+    return myOpps.flatMap(o => [
+      ...(o.commissions||[]).filter(c => c.status === 'OVERDUE'),
+      ...(o.platform_repasse||[]).filter(r => r.status === 'OVERDUE'),
+    ]).length;
   }
   if (id === 'admin-approvals' && role === 'ADMIN') {
     return PROPS.filter(p => p.approval_status === 'pending').length;

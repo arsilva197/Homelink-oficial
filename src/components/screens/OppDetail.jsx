@@ -173,13 +173,15 @@ export default function ScreenOppDetail({ ctx, opp }) {
     updateCommStatus, assignBrokerToOpp, updateOppSplit, navigate, setOpps, toast } = ctx
   const isAdmin = role === 'ADMIN'
 
-  const [showAssign, setShowAssign]   = useState(false)
+  const [showAssign, setShowAssign]     = useState(false)
   const [assignAgency, setAssignAgency] = useState('')
   const [assignBroker, setAssignBroker] = useState('')
-  const [editSplit, setEditSplit]     = useState(false)
-  const [splitVals, setSplitVals]     = useState(null)
+  const [editSplit, setEditSplit]       = useState(false)
+  const [splitVals, setSplitVals]       = useState(null)
   // ddState[oppId][entityKey] = { [docKey]: bool, uploads: { [docKey]: string[] } }
-  const [ddState, setDdState]         = useState({})
+  const [ddState, setDdState]           = useState({})
+  // participant detail modal
+  const [detailPart, setDetailPart]     = useState(null)
 
   if (!opp) return (
     <div className="empty"><div className="icon">📋</div>
@@ -504,15 +506,119 @@ export default function ScreenOppDetail({ ctx, opp }) {
         </div>
       </div>
 
+      {/* Participant Detail Modal */}
+      {detailPart && (() => {
+        const prop = props.find(x => x.id === detailPart.pid)
+        const cm   = opp.commissions.find(c => c.pid === detailPart.pid)
+        const isSeller = detailPart.role_pt.includes('Vend')
+        return (
+          <div style={{
+            position:'fixed', inset:0, zIndex:1000,
+            background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center',
+          }} onClick={() => setDetailPart(null)}>
+            <div style={{
+              background:'var(--bg1)', borderRadius:12, padding:24, width:'min(520px,94vw)',
+              maxHeight:'88vh', overflowY:'auto', boxShadow:'0 24px 60px rgba(0,0,0,.24)',
+            }} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
+                <div>
+                  <div style={{ fontSize:17, fontWeight:700, color:'var(--text1)' }}>{detailPart.name}</div>
+                  <span style={{ fontSize:11.5, fontWeight:600, padding:'2px 8px', borderRadius:4, marginTop:4, display:'inline-block',
+                    background: isSeller ? 'var(--primary)' : 'rgba(49,130,206,.12)',
+                    color: isSeller ? '#fff' : 'var(--blue)',
+                  }}>{detailPart.role_pt}</span>
+                </div>
+                <button onClick={() => setDetailPart(null)}
+                  style={{ border:'none', background:'var(--border)', borderRadius:'50%', width:28, height:28, cursor:'pointer', fontSize:14, color:'var(--text2)' }}>✕</button>
+              </div>
+
+              {/* Contact */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:10.5, fontWeight:700, textTransform:'uppercase', letterSpacing:1, color:'var(--text3)', marginBottom:8 }}>
+                  Dados de Contato
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  {detailPart.phone && (
+                    <div style={{ padding:'10px 12px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>Telefone / WhatsApp</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'var(--text1)' }}>
+                        +{detailPart.phone.replace(/^55/, '55 ').replace(/(\d{2})(\d{5})(\d{4})$/, '$1 $2-$3')}
+                      </div>
+                      <a href={`https://wa.me/${detailPart.phone}`} target="_blank" rel="noopener noreferrer"
+                        style={{ marginTop:6, display:'inline-flex', alignItems:'center', gap:4,
+                          background:'#25d366', color:'#fff', padding:'4px 10px', borderRadius:4,
+                          fontSize:11.5, fontWeight:700, textDecoration:'none' }}>
+                        📱 Iniciar WhatsApp
+                      </a>
+                    </div>
+                  )}
+                  {detailPart.email && (
+                    <div style={{ padding:'10px 12px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>E-mail</div>
+                      <div style={{ fontSize:12.5, fontWeight:600, color:'var(--text1)', wordBreak:'break-all' }}>{detailPart.email}</div>
+                    </div>
+                  )}
+                  {detailPart.cpf && (
+                    <div style={{ padding:'10px 12px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>CPF</div>
+                      <div style={{ fontSize:13, fontWeight:600, fontFamily:'monospace', color:'var(--text1)' }}>{detailPart.cpf}</div>
+                    </div>
+                  )}
+                  {cm && (
+                    <div style={{ padding:'10px 12px', background:'rgba(56,161,105,.07)', borderRadius:8, border:'1px solid rgba(56,161,105,.2)' }}>
+                      <div style={{ fontSize:10, color:'var(--text3)', marginBottom:3 }}>Comissão devida</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--green)' }}>R$ {fmtN(cm.amount/1e3)}k</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Property Details */}
+              {prop && (
+                <div>
+                  <div style={{ fontSize:10.5, fontWeight:700, textTransform:'uppercase', letterSpacing:1, color:'var(--text3)', marginBottom:8 }}>
+                    Imóvel Vinculado
+                  </div>
+                  <div style={{ padding:'14px 16px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
+                    <div style={{ fontSize:15, fontWeight:700, color:'var(--text1)', marginBottom:2 }}>{prop.name}</div>
+                    <div style={{ fontSize:12, color:'var(--text3)', marginBottom:10 }}>
+                      {prop.type} · {prop.hood}, {prop.city}
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:10 }}>
+                      {[
+                        ['Preço', `R$ ${fmtN(prop.price/1e3)}k`],
+                        ['Área', `${prop.size} m²`],
+                        ['Quartos', prop.beds],
+                        ['Banheiros', prop.baths],
+                        ['Vagas', prop.park],
+                        ['ID', prop.id],
+                      ].map(([label, val]) => (
+                        <div key={label} style={{ padding:'6px 8px', background:'var(--bg1)', borderRadius:6, textAlign:'center' }}>
+                          <div style={{ fontSize:10, color:'var(--text3)', marginBottom:2 }}>{label}</div>
+                          <div style={{ fontSize:12, fontWeight:700, color:'var(--text1)' }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <Badge status={prop.status?.toUpperCase()} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Participants + Commissions */}
       <div className="card">
         <div className="card-header">
           <div className="card-title">Participantes</div>
+          <span style={{ fontSize:11, color:'var(--text3)' }}>Clique para ver detalhes e contato</span>
         </div>
         <div className="card-body">
           <table className="data-table" style={{ marginBottom:14 }}>
             <thead><tr>
-              <th>Participante</th><th>Papel</th><th style={{ textAlign:'right' }}>Comissão</th>
+              <th>Participante</th><th>Papel</th><th>Contato</th><th style={{ textAlign:'right' }}>Comissão</th>
             </tr></thead>
             <tbody>
               {opp.participants.map(pp => {
@@ -520,15 +626,28 @@ export default function ScreenOppDetail({ ctx, opp }) {
                 const cm = opp.commissions.find(c => c.pid === pp.pid)
                 const isSeller = pp.role_pt.includes('Vend')
                 return (
-                  <tr key={pp.pid}>
+                  <tr key={pp.pid} onClick={() => setDetailPart(pp)}
+                    style={{ cursor:'pointer' }}
+                    title="Clique para ver dados completos e contato">
                     <td>
                       <div style={{ fontWeight:600, fontSize:12.5 }}>{pp.name}</div>
-                      {prop && <div style={{ fontSize:11, color:'var(--text3)' }}>{prop.name}</div>}
+                      {prop && <div style={{ fontSize:11, color:'var(--text3)' }}>{prop.name} · {prop.hood}</div>}
                     </td>
                     <td>
-                      <span style={{ fontSize:11.5, background:isSeller?'var(--primary)':'var(--border)', color:isSeller?'var(--bg1)':'var(--text2)', padding:'2px 7px', borderRadius:4 }}>
+                      <span style={{ fontSize:11.5, background:isSeller?'var(--primary)':'rgba(49,130,206,.12)', color:isSeller?'#fff':'var(--blue)', padding:'2px 7px', borderRadius:4 }}>
                         {pp.role_pt}
                       </span>
+                    </td>
+                    <td>
+                      {pp.phone ? (
+                        <a href={`https://wa.me/${pp.phone}`} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{ display:'inline-flex', alignItems:'center', gap:4,
+                            background:'#25d366', color:'#fff', padding:'3px 8px',
+                            borderRadius:4, fontSize:11, fontWeight:600, textDecoration:'none' }}>
+                          📱 WhatsApp
+                        </a>
+                      ) : <span style={{ fontSize:11, color:'var(--text3)' }}>—</span>}
                     </td>
                     <td style={{ textAlign:'right' }}>
                       {cm

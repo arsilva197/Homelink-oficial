@@ -24,7 +24,6 @@ import ScreenMyProperties from './screens/MyProperties'
 import ScreenInterests from './screens/Interests'
 import ScreenOpportunities from './screens/Opportunities'
 import ScreenOppDetail from './screens/OppDetail'
-import ScreenTransactions from './screens/Transactions'
 import ScreenPayments from './screens/Payments'
 import ScreenAnalytics from './screens/Analytics'
 import ScreenSourcing from './screens/Sourcing'
@@ -224,7 +223,6 @@ export default function HomeLinkApp() {
       case 'interests':        return <ScreenInterests ctx={ctx} />
       case 'opportunities':    return <ScreenOpportunities ctx={ctx} />
       case 'opp-detail':       return <ScreenOppDetail ctx={ctx} opp={selectedOpp} />
-      case 'transactions':     return <ScreenTransactions ctx={ctx} />
       case 'payments':         return <ScreenPayments ctx={ctx} />
       case 'analytics':
       case 'broker-analytics':
