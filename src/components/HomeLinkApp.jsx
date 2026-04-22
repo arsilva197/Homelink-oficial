@@ -15,7 +15,7 @@ import {
 } from '../lib/db'
 import { isSupabaseEnabled } from '../lib/supabase'
 import { Badge, Modal, ToastContainer, PropCard, KpiCard, MetricRow,
-  PipelineSteps, ImportModal } from './ui'
+  PipelineSteps, ImportModal, PriceRangeSlider, NeighborhoodPicker } from './ui'
 
 // ─── Screen components ───────────────────────────────────────
 import ScreenMarketplace from './screens/Marketplace'
@@ -33,11 +33,11 @@ import ScreenAdminUsers from './screens/AdminUsers'
 import ScreenProperties from './screens/Properties'
 import ScreenAdminApprovals from './screens/AdminApprovals'
 
-const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','CONCRETIZADA','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
+const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','CONCRETIZADA','DUE_DILIGENCE','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
 
 export default function HomeLinkApp() {
   const [role, setRole] = useState('ADMIN')
-  const [lang, setLang] = useState('pt')
+  const lang = 'pt'
   const [theme, setTheme] = useState('light')
   const [screen, setScreen] = useState('marketplace')
   const [props, setProps] = useState(MOCK_PROPS)
@@ -300,13 +300,6 @@ export default function HomeLinkApp() {
             >
               {theme==='dark'?'☀️':'🌙'}
             </button>
-            <button
-              className={`btn btn-sm ${lang==='en'?'btn-primary':'btn-secondary'}`}
-              onClick={() => setLang(l => l==='pt'?'en':'pt')}
-              title="Toggle language"
-            >
-              {lang==='pt'?'EN':'PT'}
-            </button>
             <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, cursor:'pointer', color:'var(--text3)' }}>
               <input type="checkbox" checked={demoMode} onChange={e => setDemoMode(e.target.checked)} />
               Demo
@@ -499,128 +492,225 @@ function PropDetailModal({ prop, lang, opps, onClose, onViewOpp }) {
 
 // ── Add Interest Modal ────────────────────────────────────────
 function AddInterestModal({ lang, role, onClose, onSave }) {
-  const pt = lang === 'pt'
-  const [form, setForm] = useState({ title:'', type:'Apartamento', city:'São Paulo', hood:'', min_p:'', max_p:'', min_size:'', min_beds:1, notes:'' })
+  const [form, setForm] = useState({
+    title:'', type:'Apartamento', city:'São Paulo', hoods:[], min_p:300000, max_p:1500000, min_size:'', min_beds:1, notes:''
+  })
   const set = (k,v) => setForm(f => ({...f, [k]:v}))
 
   return (
-    <Modal title={pt?'Novo Interesse de Compra':'New Buy Interest'} onClose={onClose}
+    <Modal title="Novo Interesse de Compra" onClose={onClose}
       footer={
         <>
-          <button className="btn btn-secondary" onClick={onClose}>{pt?'Cancelar':'Cancel'}</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={() => {
             if (!form.title || !form.city) return
-            onSave({ ...form, min_p: Number(form.min_p)||0, max_p: Number(form.max_p)||0, min_size: Number(form.min_size)||0, min_beds: Number(form.min_beds)||0 })
-          }}>{pt?'Salvar':'Save'}</button>
+            onSave({ ...form, hood: form.hoods.join(', '), min_size: Number(form.min_size)||0, min_beds: Number(form.min_beds)||0 })
+          }}>Salvar</button>
         </>
       }
     >
       <div className="form-group">
-        <label className="form-label">{pt?'Título':'Title'}</label>
-        <input className="form-input" placeholder={pt?'Ex: Casa em Vila Mariana':'Ex: House in Vila Mariana'} value={form.title} onChange={e=>set('title',e.target.value)} />
+        <label className="form-label">Título</label>
+        <input className="form-input" placeholder="Ex: Casa em Vila Mariana" value={form.title} onChange={e=>set('title',e.target.value)} />
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
         <div className="form-group">
-          <label className="form-label">{pt?'Tipo':'Type'}</label>
+          <label className="form-label">Tipo</label>
           <select className="form-select" value={form.type} onChange={e=>set('type',e.target.value)}>
             <option>Apartamento</option><option>Casa</option><option>Terreno</option><option>Comercial</option>
           </select>
         </div>
         <div className="form-group">
-          <label className="form-label">{pt?'Cidade':'City'}</label>
-          <select className="form-select" value={form.city} onChange={e=>set('city',e.target.value)}>
+          <label className="form-label">Cidade</label>
+          <select className="form-select" value={form.city} onChange={e=>{ set('city',e.target.value); set('hoods',[]) }}>
             <option>São Paulo</option><option>Rio de Janeiro</option><option>Belo Horizonte</option>
+            <option>Curitiba</option><option>Porto Alegre</option><option>Salvador</option>
+            <option>Fortaleza</option><option>Recife</option>
           </select>
         </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Bairros de interesse</label>
+        <NeighborhoodPicker city={form.city} selected={form.hoods} onChange={v=>set('hoods',v)} />
+        {form.hoods.length > 0 && (
+          <div style={{ marginTop:6, display:'flex', flexWrap:'wrap', gap:4 }}>
+            {form.hoods.map(h => (
+              <span key={h} style={{ fontSize:11, padding:'2px 8px', background:'var(--primary)', color:'#fff', borderRadius:10, cursor:'pointer' }}
+                onClick={() => set('hoods', form.hoods.filter(x=>x!==h))}>
+                {h} ×
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Faixa de Preço (R$)</label>
+        <PriceRangeSlider
+          minVal={form.min_p} maxVal={form.max_p}
+          onMinChange={v=>set('min_p',v)} onMaxChange={v=>set('max_p',v)}
+          min={0} max={10000000} step={50000}
+        />
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
         <div className="form-group">
-          <label className="form-label">{pt?'Preço Mín (R$)':'Min Price (R$)'}</label>
-          <input className="form-input" type="number" value={form.min_p} onChange={e=>set('min_p',e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{pt?'Preço Máx (R$)':'Max Price (R$)'}</label>
-          <input className="form-input" type="number" value={form.max_p} onChange={e=>set('max_p',e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{pt?'Área Mín (m²)':'Min Area (m²)'}</label>
+          <label className="form-label">Área Mín (m²)</label>
           <input className="form-input" type="number" value={form.min_size} onChange={e=>set('min_size',e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">{pt?'Quartos Mín':'Min Bedrooms'}</label>
+          <label className="form-label">Quartos Mín</label>
           <input className="form-input" type="number" min="0" value={form.min_beds} onChange={e=>set('min_beds',e.target.value)} />
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">{pt?'Observações':'Notes'}</label>
+        <label className="form-label">Observações</label>
         <textarea className="form-input" rows={3} value={form.notes} onChange={e=>set('notes',e.target.value)} />
       </div>
     </Modal>
   )
 }
 
+// helpers for the listing form
+function fmtBRL(raw) {
+  const n = raw.replace(/\D/g,'')
+  if (!n) return ''
+  return 'R$ ' + Number(n).toLocaleString('pt-BR')
+}
+function parseBRL(str) { return Number(str.replace(/\D/g,'')) || 0 }
+
 // ── Add / Edit Listing Modal ──────────────────────────────────
 function AddListingModal({ lang, role, onClose, onSave }) {
-  const pt = lang === 'pt'
-  const [form, setForm] = useState({ name:'', en:'', type:'Apartamento', city:'São Paulo', hood:'', price:'', size:'', beds:2, baths:1, park:1 })
+  const [form, setForm] = useState({
+    name:'', type:'Apartamento',
+    cep:'', logradouro:'', numero:'', complemento:'',
+    city:'', hood:'', state:'',
+    priceDisplay:'', size:'', beds:2, baths:1, park:1
+  })
+  const [cepStatus, setCepStatus] = useState('')   // 'loading' | 'ok' | 'error' | ''
   const set = (k,v) => setForm(f => ({...f, [k]:v}))
 
+  const handleCep = async (raw) => {
+    const cep = raw.replace(/\D/g,'')
+    set('cep', raw)
+    if (cep.length !== 8) { setCepStatus(''); return }
+    setCepStatus('loading')
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const data = await res.json()
+      if (data.erro) { setCepStatus('error'); return }
+      setForm(f => ({
+        ...f, cep: raw,
+        logradouro: data.logradouro || '',
+        hood:        data.bairro     || '',
+        city:        data.localidade || '',
+        state:       data.uf         || '',
+      }))
+      setCepStatus('ok')
+    } catch { setCepStatus('error') }
+  }
+
   return (
-    <Modal title={pt?'+ Novo Anúncio':'+ New Listing'} onClose={onClose}
+    <Modal title="+ Novo Anúncio" onClose={onClose}
       footer={
         <>
-          <button className="btn btn-secondary" onClick={onClose}>{pt?'Cancelar':'Cancel'}</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" onClick={() => {
-            if (!form.name || !form.price) return
-            onSave({ ...form, price: Number(form.price), size: Number(form.size)||0, beds: Number(form.beds), baths: Number(form.baths), park: Number(form.park) })
-          }}>{pt?'Publicar':'Publish'}</button>
+            if (!form.name || !form.priceDisplay || !form.city) return
+            onSave({
+              ...form,
+              en: form.name,
+              price: parseBRL(form.priceDisplay),
+              size: Number(form.size)||0,
+              beds: Number(form.beds),
+              baths: Number(form.baths),
+              park: Number(form.park),
+            })
+          }}>Publicar</button>
         </>
       }
     >
       <div style={{ padding:'8px 12px', background:'rgba(237,137,54,.08)', border:'1px solid var(--amber)', borderRadius:6, marginBottom:14, fontSize:12, color:'var(--text2)' }}>
-        ℹ️ {pt?'Após publicar, seu anúncio aguardará aprovação do Admin antes de ficar ativo.':'After publishing, your listing will await Admin approval before going live.'}
+        ℹ️ Após publicar, seu anúncio aguardará aprovação do Admin antes de ficar ativo.
       </div>
+
       <div className="form-group">
-        <label className="form-label">{pt?'Título (PT)':'Title (PT)'}</label>
-        <input className="form-input" placeholder="Ex: Apto moderno no centro" value={form.name} onChange={e=>set('name',e.target.value)} />
+        <label className="form-label">Título do Anúncio</label>
+        <input className="form-input" placeholder="Ex: Apartamento moderno no centro" value={form.name} onChange={e=>set('name',e.target.value)} />
       </div>
+
       <div className="form-group">
-        <label className="form-label">{pt?'Título (EN)':'Title (EN)'}</label>
-        <input className="form-input" placeholder="Ex: Modern downtown apt" value={form.en} onChange={e=>set('en',e.target.value)} />
+        <label className="form-label">Tipo de Imóvel</label>
+        <select className="form-select" value={form.type} onChange={e=>set('type',e.target.value)}>
+          <option>Apartamento</option><option>Casa</option><option>Terreno</option><option>Comercial</option>
+        </select>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-        <div className="form-group">
-          <label className="form-label">{pt?'Tipo':'Type'}</label>
-          <select className="form-select" value={form.type} onChange={e=>set('type',e.target.value)}>
-            <option>Apartamento</option><option>Casa</option><option>Terreno</option><option>Comercial</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label">{pt?'Cidade':'City'}</label>
-          <select className="form-select" value={form.city} onChange={e=>set('city',e.target.value)}>
-            <option>São Paulo</option><option>Rio de Janeiro</option><option>Belo Horizonte</option>
-          </select>
-        </div>
-        <div className="form-group">
-          <label className="form-label">{pt?'Bairro':'Neighborhood'}</label>
-          <input className="form-input" value={form.hood} onChange={e=>set('hood',e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{pt?'Preço (R$)':'Price (R$)'}</label>
-          <input className="form-input" type="number" value={form.price} onChange={e=>set('price',e.target.value)} />
+
+      {/* CEP lookup */}
+      <div className="form-group">
+        <label className="form-label">
+          CEP {cepStatus === 'loading' && <span style={{ fontSize:10, color:'var(--text3)' }}>🔄 Buscando...</span>}
+              {cepStatus === 'ok'      && <span style={{ fontSize:10, color:'var(--green)' }}>✅ Endereço encontrado</span>}
+              {cepStatus === 'error'   && <span style={{ fontSize:10, color:'var(--red)' }}>❌ CEP não encontrado</span>}
+        </label>
+        <input className="form-input" placeholder="00000-000" maxLength={9}
+          value={form.cep}
+          onChange={e => handleCep(e.target.value.replace(/(\d{5})(\d)/,'$1-$2').slice(0,9))}
+        />
+      </div>
+
+      {cepStatus === 'ok' && (
+        <>
+          <div className="form-group">
+            <label className="form-label">Logradouro</label>
+            <input className="form-input" value={form.logradouro} onChange={e=>set('logradouro',e.target.value)} />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div className="form-group">
+              <label className="form-label">Número</label>
+              <input className="form-input" placeholder="Ex: 42" value={form.numero} onChange={e=>set('numero',e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Complemento</label>
+              <input className="form-input" placeholder="Apto, Bloco..." value={form.complemento} onChange={e=>set('complemento',e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Bairro</label>
+              <input className="form-input" value={form.hood} onChange={e=>set('hood',e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Cidade</label>
+              <input className="form-input" value={form.city} onChange={e=>set('city',e.target.value)} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Price + details */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop: cepStatus === 'ok' ? 0 : 0 }}>
+        <div className="form-group" style={{ gridColumn:'1/-1' }}>
+          <label className="form-label">Preço</label>
+          <input className="form-input" placeholder="R$ 0"
+            value={form.priceDisplay}
+            onChange={e => set('priceDisplay', fmtBRL(e.target.value))}
+            inputMode="numeric"
+          />
         </div>
         <div className="form-group">
           <label className="form-label">Área (m²)</label>
           <input className="form-input" type="number" value={form.size} onChange={e=>set('size',e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">{pt?'Quartos':'Bedrooms'}</label>
+          <label className="form-label">Quartos</label>
           <input className="form-input" type="number" min="0" value={form.beds} onChange={e=>set('beds',e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">{pt?'Banheiros':'Bathrooms'}</label>
+          <label className="form-label">Banheiros</label>
           <input className="form-input" type="number" min="0" value={form.baths} onChange={e=>set('baths',e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">{pt?'Vagas':'Parking'}</label>
+          <label className="form-label">Vagas</label>
           <input className="form-input" type="number" min="0" value={form.park} onChange={e=>set('park',e.target.value)} />
         </div>
       </div>

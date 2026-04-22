@@ -3,6 +3,7 @@
 export const BADGE_MAP = {
   PENDING_REVIEW:'b-pending', APPROVED:'b-approved', ASSIGNED:'b-approved',
   IN_NEGOTIATION:'b-negotiation', CONCRETIZADA:'b-concretizada',
+  DUE_DILIGENCE:'b-negotiation',
   COMMISSION_PENDING:'b-commission', COMMISSION_PAID:'b-paid',
   CLOSED:'b-closed', CANCELLED:'b-cancelled', OVERDUE:'b-overdue',
   PENDING:'b-pending', PAID:'b-paid',
@@ -15,7 +16,8 @@ export const BADGE_MAP = {
 export const BADGE_LABELS = {
   PENDING_REVIEW:{pt:'Aguardando',en:'Pending'}, APPROVED:{pt:'Aprovado',en:'Approved'},
   ASSIGNED:{pt:'Atribuído',en:'Assigned'}, IN_NEGOTIATION:{pt:'Em Negociação',en:'In Negotiation'},
-  CONCRETIZADA:{pt:'Concretizada',en:'Concretized'}, COMMISSION_PENDING:{pt:'Com. Pendente',en:'Comm. Pending'},
+  CONCRETIZADA:{pt:'Concretizada',en:'Concretized'}, DUE_DILIGENCE:{pt:'Due Diligence',en:'Due Diligence'},
+  COMMISSION_PENDING:{pt:'Com. Pendente',en:'Comm. Pending'},
   COMMISSION_PAID:{pt:'Com. Paga',en:'Comm. Paid'}, CLOSED:{pt:'Encerrado',en:'Closed'},
   OVERDUE:{pt:'Vencida',en:'Overdue'}, PENDING:{pt:'Pendente',en:'Pending'}, PAID:{pt:'Paga',en:'Paid'},
   ATIVO:{pt:'Ativo',en:'Active'}, MATCH:{pt:'Match',en:'Match'}, PAUSADO:{pt:'Pausado',en:'Paused'},
@@ -85,7 +87,7 @@ export const T = {
   btn_add_interest:{pt:'+ Novo Interesse',en:'+ New Interest'},
   no_listings:{pt:'Nenhum anúncio publicado.',en:'No listings yet.'},
   no_interests:{pt:'Nenhum interesse cadastrado.',en:'No buy interests yet.'},
-  interest_hint:{pt:'Descreva o imóvel que procura para encontrar cadeias de match.',en:'Describe the property you seek to find chain matches.'},
+  interest_hint:{pt:'Descreva o que você procura e o sistema vai buscar os imóveis que atendem às suas expectativas.',en:'Describe what you are looking for and the system will find properties that match your expectations.'},
   demo_label:{pt:'Demo',en:'Demo'},
   import_terms:{pt:'Aceito os termos de comissão de 6%',en:'I accept the 6% commission terms'},
 };

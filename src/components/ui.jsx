@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { getBadgeClass, getBadgeLabel, fmtPrice, PROP_GRADIENTS, PROP_ICONS } from '../lib/utils'
 
 // ── Badge ──────────────────────────────────────────────────────
@@ -21,21 +22,26 @@ export function MetricRow({ label, value }) {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────
-export function KpiCard({ label, value, sub, icon, color }) {
+export function KpiCard({ label, value, sub, icon, color, onClick }) {
   return (
-    <div className="kpi" style={{ borderLeft: `3px solid ${color || 'var(--primary)'}` }}>
+    <div className="kpi" onClick={onClick}
+      style={{ borderLeft: `3px solid ${color || 'var(--primary)'}`, cursor: onClick ? 'pointer' : 'default', transition:'transform 0.15s, box-shadow 0.15s' }}
+      onMouseEnter={e => { if (onClick) { e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 4px 14px rgba(0,0,0,.12)' } }}
+      onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow='' }}
+    >
       <div className="kpi-icon">{icon}</div>
       <div>
         <div className="kpi-label">{label}</div>
         <div className="kpi-value">{value}</div>
         {sub && <div className="kpi-sub">{sub}</div>}
+        {onClick && <div style={{ fontSize:9.5, color:'var(--text4)', marginTop:2 }}>Ver detalhes →</div>}
       </div>
     </div>
   )
 }
 
 // ── Property Card ─────────────────────────────────────────────
-export function PropCard({ prop, index, canManage, showFav, lang='pt', onFavToggle, onClick, onEdit }) {
+export function PropCard({ prop, index, canManage, showFav, lang='pt', role, onFavToggle, onClick, onEdit }) {
   const gi = index % PROP_GRADIENTS.length
   const [c1, c2] = PROP_GRADIENTS[gi]
   const icon = PROP_ICONS[index % PROP_ICONS.length]
@@ -59,7 +65,7 @@ export function PropCard({ prop, index, canManage, showFav, lang='pt', onFavTogg
         )}
         <div className="prop-img-badge">
           <Badge status={st} lang={lang} />
-          {prop.chain && (
+          {prop.chain && role !== 'USUARIO' && (
             <span style={{ marginLeft:3, background:'var(--blue)', color:'#fff', fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:4 }}>
               {prop.chain}
             </span>
@@ -126,14 +132,15 @@ export function ToastContainer({ toasts }) {
 
 // ── Pipeline Steps (improved visual layout) ───────────────────
 const STAGE_LABELS = {
-  PENDING_REVIEW: { pt:'Aguardando\nRevisão', en:'Pending\nReview', icon:'⏳' },
-  APPROVED:       { pt:'Aprovado',         en:'Approved',     icon:'✅' },
-  ASSIGNED:       { pt:'Atribuído',        en:'Assigned',     icon:'👤' },
-  IN_NEGOTIATION: { pt:'Em\nNegociação',   en:'In\nNegotiation', icon:'🤝' },
-  CONCRETIZADA:   { pt:'Concretizada',     en:'Concretized',  icon:'🏆' },
-  COMMISSION_PENDING: { pt:'Comissão\nPendente', en:'Commission\nPending', icon:'💳' },
-  COMMISSION_PAID:    { pt:'Comissão\nPaga',     en:'Commission\nPaid',    icon:'💰' },
-  CLOSED:         { pt:'Encerrado',        en:'Closed',       icon:'🔒' },
+  PENDING_REVIEW:     { pt:'Aguardando\nRevisão',  icon:'⏳' },
+  APPROVED:           { pt:'Aprovado',             icon:'✅' },
+  ASSIGNED:           { pt:'Atribuído',            icon:'👤' },
+  IN_NEGOTIATION:     { pt:'Em\nNegociação',       icon:'🤝' },
+  CONCRETIZADA:       { pt:'Concretizada',         icon:'🏆' },
+  DUE_DILIGENCE:      { pt:'Due\nDiligence',       icon:'📋' },
+  COMMISSION_PENDING: { pt:'Comissão\nPendente',   icon:'💳' },
+  COMMISSION_PAID:    { pt:'Comissão\nPaga',       icon:'💰' },
+  CLOSED:             { pt:'Encerrado',            icon:'🔒' },
 }
 
 export function PipelineSteps({ stages, currentSi }) {
@@ -182,7 +189,7 @@ export function PipelineSteps({ stages, currentSi }) {
                 color: textColor, textAlign:'center', lineHeight:1.35,
                 whiteSpace:'pre-line', maxWidth:72
               }}>
-                {meta.pt}
+                {meta.pt || meta.en || stage}
               </div>
 
               {/* Step number */}
@@ -193,6 +200,100 @@ export function PipelineSteps({ stages, currentSi }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ── Price Range Slider ────────────────────────────────────────
+export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, step=50000, min=0, max=10000000 }) {
+  const fmtBRL = v => {
+    if (!v && v !== 0) return 'R$ 0'
+    if (v >= 1000000) return 'R$ ' + (v/1000000).toFixed(1).replace(/\.?0+$/,'') + 'M'
+    if (v >= 1000) return 'R$ ' + (v/1000).toFixed(0) + 'k'
+    return 'R$ ' + v
+  }
+  const minPct = ((minVal - min) / (max - min)) * 100
+  const maxPct = ((maxVal - min) / (max - min)) * 100
+
+  return (
+    <div style={{ padding:'4px 0 8px' }}>
+      {/* Labels */}
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:12 }}>
+        <span style={{ fontWeight:700, color:'var(--primary)' }}>{fmtBRL(minVal)}</span>
+        <span style={{ fontWeight:700, color:'var(--primary)' }}>{fmtBRL(maxVal)}</span>
+      </div>
+      {/* Track */}
+      <div style={{ position:'relative', height:6, marginBottom:12 }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:6, background:'var(--border)', borderRadius:3 }} />
+        <div style={{ position:'absolute', top:0, left:`${minPct}%`, right:`${100-maxPct}%`, height:6, background:'var(--primary)', borderRadius:3 }} />
+        {/* Min thumb */}
+        <input type="range" min={min} max={max} step={step} value={minVal}
+          onChange={e => { const v = Math.min(Number(e.target.value), maxVal - step); onMinChange(v) }}
+          style={{ position:'absolute', width:'100%', height:6, appearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0 }}
+        />
+        {/* Max thumb */}
+        <input type="range" min={min} max={max} step={step} value={maxVal}
+          onChange={e => { const v = Math.max(Number(e.target.value), minVal + step); onMaxChange(v) }}
+          style={{ position:'absolute', width:'100%', height:6, appearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0 }}
+        />
+      </div>
+      {/* Manual inputs */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:6, alignItems:'center' }}>
+        <input className="form-input" type="number" value={minVal} step={step} min={min} max={maxVal - step}
+          onChange={e => onMinChange(Math.max(min, Math.min(Number(e.target.value), maxVal - step)))}
+          style={{ fontSize:12, padding:'5px 8px' }} placeholder="Mín" />
+        <span style={{ fontSize:11, color:'var(--text3)' }}>até</span>
+        <input className="form-input" type="number" value={maxVal} step={step} min={minVal + step} max={max}
+          onChange={e => onMaxChange(Math.min(max, Math.max(Number(e.target.value), minVal + step)))}
+          style={{ fontSize:12, padding:'5px 8px' }} placeholder="Máx" />
+      </div>
+    </div>
+  )
+}
+
+// ── Neighborhood Multi-Select ─────────────────────────────────
+export const HOODS_BY_CITY = {
+  'São Paulo': ['Jardins','Vila Madalena','Moema','Pinheiros','Consolação','Paulista','Higienópolis','Alphaville','Itaim Bibi','Centro','Bela Vista','Perdizes','Vila Mariana','Tatuapé','Lapa','Saúde','Campo Belo','Brooklin'],
+  'Rio de Janeiro': ['Ipanema','Leblon','Copacabana','Botafogo','Barra da Tijuca','Flamengo','Tijuca','Santa Teresa','Glória','Centro','Recreio','Jacarepaguá','Urca'],
+  'Belo Horizonte': ['Savassi','Lourdes','Funcionários','Buritis','Belvedere','Pampulha','Centro','Santo Antônio','Mangabeiras','Cidade Nova','Serra'],
+  'Curitiba': ['Batel','Água Verde','Bigorrilho','Centro','Alto da Glória','Champagnat','Ecoville','Mercês','Ahú'],
+  'Porto Alegre': ['Moinhos de Vento','Bela Vista','Petrópolis','Bom Fim','Centro','Higienópolis','Auxiliadora','Boa Vista'],
+  'Salvador': ['Barra','Ondina','Rio Vermelho','Pituba','Graça','Vitória','Itaigara','Costa Azul'],
+  'Fortaleza': ['Meireles','Aldeota','Iracema','Cocó','Varjota','Guararapes','Fátima'],
+  'Recife': ['Boa Viagem','Graças','Casa Forte','Derby','Espinheiro','Aflitos','Torre'],
+}
+
+export function NeighborhoodPicker({ city, selected, onChange }) {
+  const [open, setOpen] = useState(false)
+  const hoods = HOODS_BY_CITY[city] || []
+  const toggle = (h) => {
+    if (selected.includes(h)) onChange(selected.filter(x => x !== h))
+    else onChange([...selected, h])
+  }
+  if (!hoods.length) return null
+  return (
+    <div style={{ position:'relative' }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ padding:'8px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', cursor:'pointer', fontSize:13, background:'var(--bg1)', display:'flex', justifyContent:'space-between', alignItems:'center' }}
+      >
+        <span style={{ color: selected.length ? 'var(--text1)' : 'var(--text3)' }}>
+          {selected.length === 0 ? 'Selecione bairros...' : selected.length === 1 ? selected[0] : `${selected.length} bairros selecionados`}
+        </span>
+        <span style={{ fontSize:10, color:'var(--text3)' }}>{open ? '▲' : '▼'}</span>
+      </div>
+      {open && (
+        <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'var(--bg1)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', zIndex:200, maxHeight:200, overflowY:'auto', boxShadow:'0 4px 16px rgba(0,0,0,.15)' }}>
+          {hoods.map(h => (
+            <label key={h} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', cursor:'pointer', fontSize:13, borderBottom:'1px solid var(--border)' }}
+              onMouseEnter={e => e.currentTarget.style.background='var(--bg2)'}
+              onMouseLeave={e => e.currentTarget.style.background=''}>
+              <input type="checkbox" checked={selected.includes(h)} onChange={() => toggle(h)} style={{ cursor:'pointer' }} />
+              {h}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
