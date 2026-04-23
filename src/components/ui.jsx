@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { getBadgeClass, getBadgeLabel, fmtPrice, PROP_GRADIENTS, PROP_ICONS } from '../lib/utils'
 
 // ── Badge ──────────────────────────────────────────────────────
@@ -143,9 +143,8 @@ const STAGE_LABELS = {
   APPROVED:           { pt:'Aprovado',             icon:'✅' },
   ASSIGNED:           { pt:'Atribuído',            icon:'👤' },
   IN_NEGOTIATION:     { pt:'Em\nNegociação',       icon:'🤝' },
-  CONCRETIZADA:       { pt:'Concretizada',         icon:'🏆' },
   DUE_DILIGENCE:      { pt:'Due\nDiligence',       icon:'📋' },
-  COMMISSION_PENDING: { pt:'Comissão\nPendente',   icon:'💳' },
+  COMMISSION_PENDING: { pt:'Aguardando\nPagto',    icon:'💳' },
   COMMISSION_PAID:    { pt:'Comissão\nPaga',       icon:'💰' },
   CLOSED:             { pt:'Encerrado',            icon:'🔒' },
 }
@@ -211,7 +210,7 @@ export function PipelineSteps({ stages, currentSi }) {
   )
 }
 
-// ── Price Range Slider ────────────────────────────────────────
+// ── Price Range Slider (two independent stacked sliders) ──────
 export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, step=50000, min=0, max=10000000, hideInputs=false }) {
   const fmtBRL = v => {
     if (!v && v !== 0) return 'R$ 0'
@@ -222,40 +221,44 @@ export function PriceRangeSlider({ minVal, maxVal, onMinChange, onMaxChange, ste
   const minPct = ((minVal - min) / (max - min)) * 100
   const maxPct = ((maxVal - min) / (max - min)) * 100
 
+  const sliderStyle = {
+    width:'100%', cursor:'pointer', accentColor:'var(--primary)',
+    height:4, appearance:'none', WebkitAppearance:'none',
+  }
+
   return (
     <div style={{ padding:'4px 0 8px' }}>
-      {/* Labels */}
-      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:12 }}>
+      {/* Range display */}
+      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:12 }}>
         <span style={{ fontWeight:700, color:'var(--primary)' }}>{fmtBRL(minVal)}</span>
+        <span style={{ fontSize:11, color:'var(--text3)' }}>até</span>
         <span style={{ fontWeight:700, color:'var(--primary)' }}>{fmtBRL(maxVal)}</span>
       </div>
-      {/* Track */}
-      <div style={{ position:'relative', height:6, marginBottom:12 }}>
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:6, background:'var(--border)', borderRadius:3 }} />
-        <div style={{ position:'absolute', top:0, left:`${minPct}%`, right:`${100-maxPct}%`, height:6, background:'var(--primary)', borderRadius:3 }} />
-        {/* Min thumb — zIndex raised when near max so user can always grab it */}
+
+      {/* Filled track indicator */}
+      <div style={{ position:'relative', height:4, background:'var(--border)', borderRadius:2, marginBottom:14 }}>
+        <div style={{ position:'absolute', top:0, left:`${minPct}%`, right:`${100-maxPct}%`, height:4, background:'var(--primary)', borderRadius:2, transition:'left 0.1s, right 0.1s' }} />
+      </div>
+
+      {/* Min slider */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+        <span style={{ fontSize:10.5, color:'var(--text3)', width:34, flexShrink:0 }}>Mín</span>
         <input type="range" min={min} max={max} step={step} value={minVal}
           onChange={e => { const v = Math.min(Number(e.target.value), maxVal - step); onMinChange(v) }}
-          style={{ position:'absolute', width:'100%', height:6, appearance:'none', WebkitAppearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0, zIndex: minPct >= maxPct - 8 ? 5 : 3 }}
+          style={sliderStyle}
         />
-        {/* Max thumb */}
+        <span style={{ fontSize:11, color:'var(--text2)', width:52, textAlign:'right', flexShrink:0 }}>{fmtBRL(minVal)}</span>
+      </div>
+
+      {/* Max slider */}
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <span style={{ fontSize:10.5, color:'var(--text3)', width:34, flexShrink:0 }}>Máx</span>
         <input type="range" min={min} max={max} step={step} value={maxVal}
           onChange={e => { const v = Math.max(Number(e.target.value), minVal + step); onMaxChange(v) }}
-          style={{ position:'absolute', width:'100%', height:6, appearance:'none', WebkitAppearance:'none', background:'transparent', cursor:'pointer', pointerEvents:'all', margin:0, padding:0, top:0, zIndex:4 }}
+          style={sliderStyle}
         />
+        <span style={{ fontSize:11, color:'var(--text2)', width:52, textAlign:'right', flexShrink:0 }}>{fmtBRL(maxVal)}</span>
       </div>
-      {/* Manual inputs */}
-      {!hideInputs && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:6, alignItems:'center' }}>
-          <input className="form-input" type="number" value={minVal} step={step} min={min} max={maxVal - step}
-            onChange={e => onMinChange(Math.max(min, Math.min(Number(e.target.value), maxVal - step)))}
-            style={{ fontSize:12, padding:'5px 8px' }} placeholder="Mín" />
-          <span style={{ fontSize:11, color:'var(--text3)' }}>até</span>
-          <input className="form-input" type="number" value={maxVal} step={step} min={minVal + step} max={max}
-            onChange={e => onMaxChange(Math.min(max, Math.max(Number(e.target.value), minVal + step)))}
-            style={{ fontSize:12, padding:'5px 8px' }} placeholder="Máx" />
-        </div>
-      )}
     </div>
   )
 }
@@ -274,14 +277,28 @@ export const HOODS_BY_CITY = {
 
 export function NeighborhoodPicker({ city, selected, onChange }) {
   const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
   const hoods = HOODS_BY_CITY[city] || []
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
   const toggle = (h) => {
     if (selected.includes(h)) onChange(selected.filter(x => x !== h))
     else onChange([...selected, h])
   }
   if (!hoods.length) return null
   return (
-    <div style={{ position:'relative' }}>
+    <div ref={wrapRef} style={{ position:'relative' }}>
       <div
         onClick={() => setOpen(o => !o)}
         style={{ padding:'8px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', cursor:'pointer', fontSize:13, background:'var(--bg1)', display:'flex', justifyContent:'space-between', alignItems:'center' }}

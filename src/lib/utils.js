@@ -10,14 +10,14 @@ export const BADGE_MAP = {
   ATIVO:'b-active', MATCH:'b-concretizada', PAUSADO:'b-cancelled', CANCELADO:'b-cancelled',
   active:'b-active', suspended:'b-overdue', pending:'b-pending', blocked:'b-cancelled',
   pendente:'b-pending', aprovado:'b-approved', rejeitado:'b-cancelled',
-  PENDENTE:'b-pending', BUSCANDO:'b-negotiation', RESOLVIDO:'b-active', DISPENSADO:'b-closed',
+  PENDENTE:'b-pending', BUSCANDO:'b-negotiation', EM_ATENDIMENTO:'b-negotiation', RESOLVIDO:'b-active', DISPENSADO:'b-closed',
 };
 
 export const BADGE_LABELS = {
   PENDING_REVIEW:{pt:'Aguardando',en:'Pending'}, APPROVED:{pt:'Aprovado',en:'Approved'},
   ASSIGNED:{pt:'Atribuído',en:'Assigned'}, IN_NEGOTIATION:{pt:'Em Negociação',en:'In Negotiation'},
   CONCRETIZADA:{pt:'Concretizada',en:'Concretized'}, DUE_DILIGENCE:{pt:'Due Diligence',en:'Due Diligence'},
-  COMMISSION_PENDING:{pt:'Com. Pendente',en:'Comm. Pending'},
+  COMMISSION_PENDING:{pt:'Ag. Pagto',en:'Awaiting Pmt'},
   COMMISSION_PAID:{pt:'Com. Paga',en:'Comm. Paid'}, CLOSED:{pt:'Encerrado',en:'Closed'},
   OVERDUE:{pt:'Vencida',en:'Overdue'}, PENDING:{pt:'Pendente',en:'Pending'}, PAID:{pt:'Paga',en:'Paid'},
   ATIVO:{pt:'Ativo',en:'Active'}, MATCH:{pt:'Match',en:'Match'}, PAUSADO:{pt:'Pausado',en:'Paused'},
@@ -27,6 +27,7 @@ export const BADGE_LABELS = {
   pendente:{pt:'Pendente',en:'Pending'}, aprovado:{pt:'Aprovado',en:'Approved'},
   rejeitado:{pt:'Rejeitado',en:'Rejected'},
   PENDENTE:{pt:'Pendente',en:'Pending'}, BUSCANDO:{pt:'Buscando',en:'Searching'},
+  EM_ATENDIMENTO:{pt:'Em Atendimento',en:'In Service'},
   RESOLVIDO:{pt:'Resolvido',en:'Resolved'}, DISPENSADO:{pt:'Dispensado',en:'Dismissed'},
 };
 

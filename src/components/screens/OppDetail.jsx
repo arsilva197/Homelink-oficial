@@ -158,7 +158,8 @@ function DdGroupTable({ group, entityKey, ddLive, ddBase, canEdit, onFlag, onUpl
       </table>
       {/* mini progress */}
       <div style={{ height:3, background:'var(--border)', borderRadius:2, marginTop:4, overflow:'hidden' }}>
-        <div style={{ height:'100%', width:`${pct}%`, background: done===total?'var(--green)':'var(--primary)', transition:'width 0.4s', borderRadius:2 }} />
+        <div style={{ height:'100%', width:`${pct}%`, transition:'width 0.4s, background 0.4s', borderRadius:2,
+          background: done===total ? 'var(--green)' : pct >= 66 ? 'var(--primary)' : pct >= 33 ? 'var(--amber)' : 'var(--red)' }} />
       </div>
     </div>
   )
@@ -798,10 +799,11 @@ export default function ScreenOppDetail({ ctx, opp }) {
                     <div style={{ marginTop:8, padding:'12px 16px', background:'var(--bg2)', borderRadius:8, border:'1px solid var(--border)' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5, marginBottom:8 }}>
                         <span style={{ fontWeight:600 }}>Progresso Geral da Due Diligence</span>
-                        <span style={{ fontWeight:700, color: done===total?'var(--green)':'var(--primary)' }}>{done}/{total} ({pct}%)</span>
+                        <span style={{ fontWeight:700, color: done===total ? 'var(--green)' : pct >= 66 ? 'var(--primary)' : pct >= 33 ? 'var(--amber)' : 'var(--red)' }}>{done}/{total} ({pct}%)</span>
                       </div>
                       <div style={{ height:8, background:'var(--border)', borderRadius:4, overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:`${pct}%`, background: done===total?'var(--green)':'var(--primary)', transition:'width 0.4s', borderRadius:4 }} />
+                        <div style={{ height:'100%', width:`${pct}%`, transition:'width 0.4s, background 0.4s', borderRadius:4,
+                          background: done===total ? 'var(--green)' : pct >= 66 ? 'var(--primary)' : pct >= 33 ? 'var(--amber)' : 'var(--red)' }} />
                       </div>
                       {done === total && (
                         <div style={{ marginTop:8, fontSize:12, color:'var(--green)', fontWeight:600 }}>

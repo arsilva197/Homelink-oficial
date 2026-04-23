@@ -32,7 +32,7 @@ import ScreenAdminUsers from './screens/AdminUsers'
 import ScreenProperties from './screens/Properties'
 import ScreenAdminApprovals from './screens/AdminApprovals'
 
-const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','DUE_DILIGENCE','CONCRETIZADA','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
+const PL = ['PENDING_REVIEW','APPROVED','ASSIGNED','IN_NEGOTIATION','DUE_DILIGENCE','COMMISSION_PENDING','COMMISSION_PAID','CLOSED'];
 
 export default function HomeLinkApp() {
   const [role, setRole] = useState('ADMIN')
@@ -371,7 +371,7 @@ export default function HomeLinkApp() {
       )}
 
       {modal?.type === 'propDetail' && modal.data && (
-        <PropDetailModal prop={modal.data} lang={lang} role={role} opps={opps} onClose={() => setModal(null)} onViewOpp={(o) => { setModal(null); openOpp(o.id) }} />
+        <PropDetailModal prop={modal.data} lang={lang} role={role} opps={opps} brokers={BROKERS_DATA} toast={toast} onClose={() => setModal(null)} onViewOpp={(o) => { setModal(null); openOpp(o.id) }} />
       )}
 
       {modal?.type === 'addInterest' && (
@@ -389,7 +389,7 @@ export default function HomeLinkApp() {
       )}
 
       {modal?.type === 'addListing' && (
-        <AddListingModal lang={lang} role={role} onClose={() => setModal(null)}
+        <AddListingModal lang={lang} role={role} initialData={modal.data || null} onClose={() => setModal(null)}
           onSave={async (data) => {
             if (modal.data) {
               // Edit existing
@@ -449,7 +449,7 @@ export default function HomeLinkApp() {
 }
 
 // ── Prop Detail Modal ─────────────────────────────────────────
-function PropDetailModal({ prop, lang, role, opps, onClose, onViewOpp }) {
+function PropDetailModal({ prop, lang, role, opps, onClose, onViewOpp, brokers, toast }) {
   const pt = lang === 'pt'
   const gi = 0
   const [c1, c2] = PROP_GRADIENTS[gi]
@@ -459,12 +459,28 @@ function PropDetailModal({ prop, lang, role, opps, onClose, onViewOpp }) {
   const [photoIdx, setPhotoIdx] = useState(0)
   const creator = prop.audit?.[0]
 
+  // Find responsible broker for WhatsApp contact
+  const broker = brokers?.find(b => opp && b.id === opp.broker_id) || null
+  const handleInterest = () => {
+    const msg = encodeURIComponent(`Olá! Vi o imóvel "${prop.name}" (${prop.hood}, ${prop.city}) na plataforma HomeLink e tenho interesse. Podemos conversar?`)
+    const phone = broker?.phone || '5511999990000'
+    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank', 'noopener,noreferrer')
+    toast?.('Interesse registrado! O corretor responsável será notificado. 📱', 'success')
+  }
+
   return (
     <Modal title={prop.name} onClose={onClose}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose}>Fechar</button>
-          {opp && <button className="btn btn-primary" onClick={() => onViewOpp(opp)}>Ver Oportunidade →</button>}
+          {role === 'USUARIO' && (
+            <button className="btn btn-primary"
+              style={{ background:'#25d366', borderColor:'#25d366' }}
+              onClick={handleInterest}>
+              📱 Tenho Interesse
+            </button>
+          )}
+          {opp && role !== 'USUARIO' && <button className="btn btn-primary" onClick={() => onViewOpp(opp)}>Ver Oportunidade →</button>}
         </>
       }
     >
@@ -609,15 +625,31 @@ function fmtBRL(raw) {
 function parseBRL(str) { return Number(str.replace(/\D/g,'')) || 0 }
 
 // ── Add / Edit Listing Modal ──────────────────────────────────
-function AddListingModal({ lang, role, onClose, onSave }) {
-  const [form, setForm] = useState({
+function AddListingModal({ lang, role, onClose, onSave, initialData }) {
+  const isEdit = !!initialData
+  const [form, setForm] = useState(() => isEdit ? {
+    name:        initialData.name        || '',
+    type:        initialData.type        || 'Apartamento',
+    cep:         initialData.cep         || '',
+    logradouro:  initialData.logradouro  || '',
+    numero:      initialData.numero      || '',
+    complemento: initialData.complemento || '',
+    city:        initialData.city        || '',
+    hood:        initialData.hood        || '',
+    state:       initialData.state       || '',
+    priceDisplay: initialData.price ? fmtBRL(String(initialData.price)) : '',
+    size:        String(initialData.size || ''),
+    beds:        initialData.beds  ?? 2,
+    baths:       initialData.baths ?? 1,
+    park:        initialData.park  ?? 1,
+  } : {
     name:'', type:'Apartamento',
     cep:'', logradouro:'', numero:'', complemento:'',
     city:'', hood:'', state:'',
     priceDisplay:'', size:'', beds:2, baths:1, park:1
   })
-  const [photos, setPhotos] = useState([])   // up to 5 object URLs
-  const [cepStatus, setCepStatus] = useState('')   // 'loading' | 'ok' | 'error' | ''
+  const [photos, setPhotos] = useState(isEdit ? (initialData.photos || []) : [])
+  const [cepStatus, setCepStatus] = useState(isEdit ? 'ok' : '')   // 'loading' | 'ok' | 'error' | ''
   const set = (k,v) => setForm(f => ({...f, [k]:v}))
 
   const handlePhotoFiles = (files) => {
@@ -650,7 +682,7 @@ function AddListingModal({ lang, role, onClose, onSave }) {
   }
 
   return (
-    <Modal title="+ Novo Anúncio" onClose={onClose}
+    <Modal title={isEdit ? '✏️ Editar Anúncio' : '+ Novo Anúncio'} onClose={onClose}
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
@@ -666,13 +698,15 @@ function AddListingModal({ lang, role, onClose, onSave }) {
               park: Number(form.park),
               photos,
             })
-          }}>Publicar</button>
+          }}>{isEdit ? '💾 Salvar Alterações' : 'Publicar'}</button>
         </>
       }
     >
-      <div style={{ padding:'8px 12px', background:'rgba(237,137,54,.08)', border:'1px solid var(--amber)', borderRadius:6, marginBottom:14, fontSize:12, color:'var(--text2)' }}>
-        ℹ️ Após publicar, seu anúncio aguardará aprovação do Admin antes de ficar ativo.
-      </div>
+      {!isEdit && (
+        <div style={{ padding:'8px 12px', background:'rgba(237,137,54,.08)', border:'1px solid var(--amber)', borderRadius:6, marginBottom:14, fontSize:12, color:'var(--text2)' }}>
+          ℹ️ Após publicar, seu anúncio aguardará aprovação do Admin antes de ficar ativo.
+        </div>
+      )}
 
       <div className="form-group">
         <label className="form-label">Título do Anúncio</label>
